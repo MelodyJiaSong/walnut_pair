@@ -1,4 +1,4 @@
-.PHONY: help type-check lint format fix check install test
+.PHONY: help type-check lint format fix check install test webapi batch capture ui
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -35,4 +35,21 @@ test: ## Run tests (placeholder)
 
 ci: check ## Run all checks for CI/CD
 	@echo "✅ CI checks completed"
+
+webapi: ## Run the WebAPI application
+	@echo "Starting WebAPI on http://localhost:8000"
+	@echo "API docs available at http://localhost:8000/docs"
+	python -m app__webapi.main
+
+batch: ## Run the batch processing application
+	@echo "Starting batch processing application..."
+	python -m app__batch.main
+
+capture: ## Run the image capture application
+	@echo "Starting image capture application..."
+	python -m app__image_capture.main
+
+ui: ## Run the UI application (Next.js)
+	@echo "Starting UI application on http://localhost:3000"
+	cd app__ui && npm run dev
 
