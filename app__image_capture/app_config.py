@@ -56,7 +56,7 @@ class ImageCaptureAppConfig(IAppConfig):
             self._database: DatabaseConfig = DatabaseConfig(
                 host="localhost",
                 port=5432,
-                database="walnut_pairing",
+                database="walnut_pair",
                 user="postgres",
                 password="",
             )

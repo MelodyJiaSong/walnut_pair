@@ -5,7 +5,7 @@ The codebase has been restructured to support two executable applications:
 ## New Structure
 
 ```
-walnut_pairing/
+walnut_pair/
 ├── libs/              # Shared library code
 │   └── src/           # All shared business logic, domain, infrastructure
 ├── app__batch/        # Batch job application

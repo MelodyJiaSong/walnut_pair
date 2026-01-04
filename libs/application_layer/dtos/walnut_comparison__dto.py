@@ -1,5 +1,5 @@
 # application_layer/dtos/walnut_comparison__dto.py
-"""DTOs for walnut comparison/pairing results."""
+"""DTOs for walnut comparison/pair results."""
 from datetime import datetime
 from typing import Optional
 
@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 
 class WalnutComparisonDTO(BaseModel):
-    """Data Transfer Object for walnut comparison/pairing result."""
+    """Data Transfer Object for walnut comparison/pair result."""
 
     id: int
     walnut_id: str

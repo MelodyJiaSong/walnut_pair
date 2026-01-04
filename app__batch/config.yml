@@ -1,9 +1,9 @@
-image_root: "/home/dalu/workspace/walnut_pairing/images"
+image_root: "/home/dalu/workspace/walnut_pair/images"
 
 database:
   host: "localhost"
   port: 5432
-  database: "walnut_pairing"
+  database: "walnut_pair"
   user: "postgres"
   password: "sa"
 

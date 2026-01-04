@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "walnut-pairing"
+name = "walnut-pair"
 version = "0.1.0"
-description = "Walnut pairing application"
+description = "Walnut pair application"
 requires-python = ">=3.12"
 dependencies = [
     "dependency-injector",

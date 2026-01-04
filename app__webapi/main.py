@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app__webapi.controllers import walnut_pairings__controller
+from app__webapi.controllers import walnut_pairs__controller
 from app__webapi.dependencies import get_container, shutdown_container
 
 
@@ -22,8 +22,8 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
     app = FastAPI(
-        title="Walnut Pairing API",
-        description="API for walnut pairing and image processing. Provides endpoints to query walnut pairing results based on similarity scores.",
+        title="Walnut Pair API",
+        description="API for walnut pair and image processing. Provides endpoints to query walnut pair results based on similarity scores.",
         version="1.0.0",
         lifespan=lifespan,
         docs_url="/docs",  # Swagger UI
@@ -41,8 +41,8 @@ def create_app() -> FastAPI:
     )
 
     # Include routers
-    from app__webapi.routes import WALNUT_PAIRINGS_BASE
-    app.include_router(walnut_pairings__controller.router, prefix=WALNUT_PAIRINGS_BASE)
+    from app__webapi.routes import WALNUT_PAIRS_BASE
+    app.include_router(walnut_pairs__controller.router, prefix=WALNUT_PAIRS_BASE)
 
     return app
 

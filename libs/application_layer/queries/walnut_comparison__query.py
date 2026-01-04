@@ -12,18 +12,18 @@ class IWalnutComparisonQuery(ABC):
     """Interface for querying walnut comparisons."""
 
     @abstractmethod
-    async def get_all_pairings_async(self) -> List[WalnutComparisonDTO]:
-        """Get all walnut pairing results."""
+    async def get_all_pairs_async(self) -> List[WalnutComparisonDTO]:
+        """Get all walnut pair results."""
         pass
 
     @abstractmethod
-    async def get_pairings_by_walnut_id_async(self, walnut_id: str) -> List[WalnutComparisonDTO]:
-        """Get all pairings for a specific walnut."""
+    async def get_pairs_by_walnut_id_async(self, walnut_id: str) -> List[WalnutComparisonDTO]:
+        """Get all pairs for a specific walnut."""
         pass
 
     @abstractmethod
-    async def get_pairing_async(self, walnut_id: str, compared_walnut_id: str) -> Optional[WalnutComparisonDTO]:
-        """Get a specific pairing between two walnuts."""
+    async def get_pair_async(self, walnut_id: str, compared_walnut_id: str) -> Optional[WalnutComparisonDTO]:
+        """Get a specific pair between two walnuts."""
         pass
 
 
@@ -45,18 +45,18 @@ class WalnutComparisonQuery(IWalnutComparisonQuery):
         self.comparison_reader: IWalnutComparisonDBReader = comparison_reader
         self.comparison_mapper: IWalnutComparisonMapper = comparison_mapper
 
-    async def get_all_pairings_async(self) -> List[WalnutComparisonDTO]:
-        """Get all walnut pairing results."""
+    async def get_all_pairs_async(self) -> List[WalnutComparisonDTO]:
+        """Get all walnut pair results."""
         daos = await self.comparison_reader.get_all_async()
         return self.comparison_mapper.daos_to_dtos(daos)
 
-    async def get_pairings_by_walnut_id_async(self, walnut_id: str) -> List[WalnutComparisonDTO]:
-        """Get all pairings for a specific walnut."""
+    async def get_pairs_by_walnut_id_async(self, walnut_id: str) -> List[WalnutComparisonDTO]:
+        """Get all pairs for a specific walnut."""
         daos = await self.comparison_reader.get_by_walnut_id_async(walnut_id)
         return self.comparison_mapper.daos_to_dtos(daos)
 
-    async def get_pairing_async(self, walnut_id: str, compared_walnut_id: str) -> Optional[WalnutComparisonDTO]:
-        """Get a specific pairing between two walnuts."""
+    async def get_pair_async(self, walnut_id: str, compared_walnut_id: str) -> Optional[WalnutComparisonDTO]:
+        """Get a specific pair between two walnuts."""
         dao = await self.comparison_reader.get_by_ids_async(walnut_id, compared_walnut_id)
         if dao is None:
             return None

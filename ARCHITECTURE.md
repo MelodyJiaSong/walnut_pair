@@ -364,7 +364,7 @@ class WalnutMapper(IWalnutMapper):
 **What is a Controller:**
 - Handles HTTP requests and responses
 - Lives in `app__webapi/controllers/`
-- File naming: `xxx__controller.py` (e.g., `walnut_pairings__controller.py`)
+- File naming: `xxx__controller.py` (e.g., `walnut_pairs__controller.py`)
 - Function naming: All async functions MUST have `_async` suffix
 - Uses FastAPI router decorators
 
@@ -378,20 +378,20 @@ class WalnutMapper(IWalnutMapper):
 **Example:**
 ```python
 # app__webapi/routes.py
-WALNUT_PAIRINGS_LIST: Final[str] = "/"
+WALNUT_PAIRS_LIST: Final[str] = "/"
 
-# app__webapi/controllers/walnut_pairings__controller.py
-@router.get(WALNUT_PAIRINGS_LIST, response_model=List[WalnutComparisonDTO])
-async def get_all_pairings_async(
+# app__webapi/controllers/walnut_pairs__controller.py
+@router.get(WALNUT_PAIRS_LIST, response_model=List[WalnutComparisonDTO])
+async def get_all_pairs_async(
     query: IWalnutComparisonQuery = Depends(get_walnut_comparison_query),
 ) -> List[WalnutComparisonDTO]:
-    return await query.get_all_pairings_async()  # Returns DTOs, used directly as response
+    return await query.get_all_pairs_async()  # Returns DTOs, used directly as response
 ```
 
 **Route Constants:**
 - All route paths MUST be defined in `app__webapi/routes.py`
 - Use constants in router decorators: `@router.get(ROUTE_CONSTANT)`
-- Format: `WALNUT_PAIRINGS_BASE`, `WALNUT_PAIRINGS_LIST`, etc.
+- Format: `WALNUT_PAIRS_BASE`, `WALNUT_PAIRS_LIST`, etc.
 
 ## Infrastructure Services
 

@@ -105,7 +105,7 @@ def example_usage():
     db_conn = create_db_connection(
         host="localhost",
         port=5432,
-        database="walnut_pairing_db",
+        database="walnut_pair_db",
         user="postgres",
         password="your_password",
     )
@@ -139,7 +139,7 @@ def example_usage_with_pool():
         max_conn=5,
         host="localhost",
         port=5432,
-        database="walnut_pairing_db",
+        database="walnut_pair_db",
         user="postgres",
         password="your_password",
     )
@@ -163,13 +163,13 @@ def example_usage_with_pool():
 
 if __name__ == "__main__":
     # Example connection string format:
-    # "host=localhost port=5432 dbname=walnut_pairing_db user=postgres password=mypassword"
+    # "host=localhost port=5432 dbname=walnut_pair_db user=postgres password=mypassword"
 
     # Quick example:
     conn = create_db_connection(
         host="localhost",
         port=5432,
-        database="walnut_pairing_db",
+        database="walnut_pair_db",
         user="postgres",
         password="postgres",  # Change to your password
     )
