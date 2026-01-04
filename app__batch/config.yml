@@ -1,3 +1,6 @@
+# Path will be automatically normalized based on environment (WSL vs Windows)
+# WSL: /home/dalu/workspace/walnut_pair/images
+# Windows: c:/workspace/walnut_pair/images (automatically converted)
 image_root: "/home/dalu/workspace/walnut_pair/images"
 
 database:

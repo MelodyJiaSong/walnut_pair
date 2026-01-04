@@ -17,6 +17,7 @@ from common.interfaces import (
     FileNamingConfig,
     CameraRolesConfig,
 )
+from common.path_utils import normalize_path
 
 
 class ImageCaptureAppConfig(IAppConfig):
@@ -42,7 +43,8 @@ class ImageCaptureAppConfig(IAppConfig):
             file_naming: File naming configuration
             database: Optional database configuration (for IAppConfig compatibility)
         """
-        self._image_root: str = image_root
+        # Normalize path based on current environment (WSL vs Windows)
+        self._image_root: str = normalize_path(image_root)
         self._cameras: CameraRolesConfig = CameraRolesConfig(**cameras)
         self._capture: CaptureConfig = CaptureConfig(**capture)
         self._scan: ScanConfig = ScanConfig(**scan)
@@ -117,5 +119,8 @@ class ImageCaptureAppConfig(IAppConfig):
         """Load configuration from YAML file."""
         with open(yaml_path, "r") as f:
             cfg = yaml.safe_load(f)
+        # Normalize image_root path if present
+        if "image_root" in cfg:
+            cfg["image_root"] = normalize_path(cfg["image_root"])
         return cls(**cfg)
 

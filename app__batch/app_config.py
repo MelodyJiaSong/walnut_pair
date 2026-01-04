@@ -14,6 +14,7 @@ from common.interfaces import (
     AdvancedSimilarityConfig,
     FinalSimilarityConfig,
 )
+from common.path_utils import normalize_path
 
 
 
@@ -27,7 +28,8 @@ class AppConfig(IAppConfig):
         cameras: Optional[dict] = None,
         algorithm: Optional[dict] = None,
     ) -> None:
-        self._image_root: str = image_root
+        # Normalize path based on current environment (WSL vs Windows)
+        self._image_root: str = normalize_path(image_root)
         self._database: DatabaseConfig = DatabaseConfig(**database)
         
         # Load algorithm configurations - fail if missing
@@ -98,4 +100,7 @@ class AppConfig(IAppConfig):
     def load_from_yaml(cls, yaml_path: Path) -> "AppConfig":
         with open(yaml_path, "r") as f:
             cfg = yaml.safe_load(f)
+        # Normalize image_root path if present
+        if "image_root" in cfg:
+            cfg["image_root"] = normalize_path(cfg["image_root"])
         return cls(**cfg)
