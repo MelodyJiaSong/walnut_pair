@@ -1,0 +1,201 @@
+# application_layer/walnut__al.py
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
+
+import numpy as np
+from application_layer.mappers.walnut__mapper import IWalnutMapper
+from common.constants import DEFAULT_EMBEDDING_MODEL, SYSTEM_USER
+from common.enums import WalnutSideEnum
+from common.interfaces import IAppConfig
+from common.logger import get_logger
+from domain_layer.domain_services.embedding__domain_service import ImageEmbeddingDomainService
+from infrastructure_layer.data_access_objects import (
+    WalnutDBDAO,
+    WalnutImageDBDAO,
+    WalnutImageEmbeddingDBDAO,
+)
+from infrastructure_layer.db_readers import IWalnutDBReader, IWalnutImageEmbeddingDBReader
+from infrastructure_layer.db_writers import IWalnutDBWriter
+from infrastructure_layer.file_readers.walnut_image__file_reader import IWalnutImageFileReader
+
+
+class IWalnutAL(ABC):
+    @abstractmethod
+    async def generate_embeddings_async(self) -> None:
+        pass
+
+    @abstractmethod
+    async def create_and_save_fake_walnut_async(self, walnut_id: str) -> WalnutDBDAO:
+        """Create a fake walnut with images and embeddings and save it to the database."""
+        pass
+
+    @abstractmethod
+    async def load_and_save_walnut_from_filesystem_async(self, walnut_id: str) -> WalnutDBDAO:
+        """
+        Load walnut images from filesystem, convert to domain objects,
+        process and validate, then save to database.
+
+        Args:
+            walnut_id: The ID of the walnut (e.g., "0001")
+
+        Returns:
+            Saved WalnutDBDAO with all images and embeddings
+
+        Raises:
+            ValueError: If images are missing or invalid
+            FileNotFoundError: If image directory doesn't exist
+        """
+        pass
+
+
+class WalnutAL(IWalnutAL):
+    def __init__(
+        self,
+        app_config: IAppConfig,
+        walnut_image_embedding_reader: IWalnutImageEmbeddingDBReader,
+        walnut_reader: IWalnutDBReader,
+        walnut_writer: IWalnutDBWriter,
+        walnut_mapper: IWalnutMapper,
+        walnut_image_file_reader: IWalnutImageFileReader,
+    ) -> None:
+        self.app_config: IAppConfig = app_config
+        self.walnut_image_embedding_reader: IWalnutImageEmbeddingDBReader = walnut_image_embedding_reader
+        self.walnut_reader: IWalnutDBReader = walnut_reader
+        self.walnut_writer: IWalnutDBWriter = walnut_writer
+        self.walnut_mapper: IWalnutMapper = walnut_mapper
+        self.walnut_image_file_reader: IWalnutImageFileReader = walnut_image_file_reader
+        self.logger = get_logger(__name__)
+
+    async def generate_embeddings_async(self) -> None:
+        """Generate embeddings for testing purposes."""
+        self.logger.info(
+            "embedding_generation_start",
+            image_root=self.app_config.image_root,
+            database_host=self.app_config.database.host,
+        )
+
+        test_image_path = Path(self.app_config.image_root) / "0001" / "0001_B_1.jpg"
+        if test_image_path.exists():
+            self.logger.info("testing_embedding", test_image_path=str(test_image_path))
+            embedding = self.image_embedding_service.generate(str(test_image_path))
+            self.logger.info("embedding_generated", shape=embedding.shape)
+        else:
+            self.logger.warning("test_image_not_found", path=str(test_image_path))
+
+        test = await self.walnut_image_embedding_reader.get_by_model_name_async(DEFAULT_EMBEDDING_MODEL)
+        self.logger.info("embeddings_found", count=len(test))
+
+        walnuts = await self.walnut_reader.get_all_async()
+        self.logger.info("walnuts_found", count=len(walnuts))
+
+    async def create_and_save_fake_walnut_async(self, walnut_id: str) -> WalnutDBDAO:
+        """
+        Create a fake walnut with images and embeddings and save it to the database.
+        This demonstrates the ORM-like save functionality where walnut, images, and embeddings
+        are all saved in a single call.
+        """
+        # Create fake walnut (now it's an ORM model)
+        walnut = WalnutDBDAO(
+            id=walnut_id,
+            description=f"Fake walnut {walnut_id} for testing",
+            created_by=SYSTEM_USER,
+            updated_by=SYSTEM_USER,
+        )
+
+        # Create fake images for all 6 sides
+        for side_enum in WalnutSideEnum:
+            side = side_enum.value
+            # Create fake image (now it's an ORM model)
+            image = WalnutImageDBDAO(
+                walnut_id=walnut_id,
+                side=side,
+                image_path=f"/images/{walnut_id}/{walnut_id}_{side[0].upper()}_1.jpg",
+                width=1920,
+                height=1080,
+                checksum=f"fake_checksum_{walnut_id}_{side}",
+                created_by=SYSTEM_USER,
+                updated_by=SYSTEM_USER,
+            )
+
+            # Create fake embedding (2048-dimensional vector to match ResNet50)
+            fake_embedding = np.random.rand(2048).astype(np.float32)
+            embedding = WalnutImageEmbeddingDBDAO(
+                # image_id will be set after image is saved
+                model_name=DEFAULT_EMBEDDING_MODEL,
+                embedding=fake_embedding,
+                created_by=SYSTEM_USER,
+                updated_by=SYSTEM_USER,
+            )
+            # Attach embedding to image - the writer will set image_id after image is saved
+            image.embedding = embedding
+
+            walnut.images.append(image)
+
+        saved_walnut = await self.walnut_writer.save_with_images_async(walnut)
+        self.logger.info(
+            "walnut_saved",
+            walnut_id=walnut_id,
+            image_count=len(saved_walnut.images),
+        )
+        return saved_walnut
+
+    async def load_and_save_walnut_from_filesystem_async(self, walnut_id: str) -> WalnutDBDAO:
+        """
+        Load walnut images from filesystem, convert to domain objects,
+        process and validate, then save to database.
+
+        Flow: DTO -> Domain Entity -> DAO -> Save to DB
+
+        Args:
+            walnut_id: The ID of the walnut (e.g., "0001")
+
+        Returns:
+            Saved WalnutDBDAO with all images
+
+        Raises:
+            ValueError: If images are missing or invalid
+            FileNotFoundError: If image directory doesn't exist
+        """
+        # Step 1: Load images from filesystem and create DTOs
+        image_root = Path(self.app_config.image_root)
+        image_directory = image_root / walnut_id
+
+        if not image_directory.exists():
+            raise FileNotFoundError(f"Image directory not found: {image_directory}")
+
+        walnut_file_dao = self.walnut_image_file_reader.load_walnut_from_directory(walnut_id, image_directory)
+        if walnut_file_dao is None:
+            raise ValueError(f"No valid images found in directory: {image_directory}")
+
+        self.logger.info(
+            "images_loaded",
+            image_count=len(walnut_file_dao.images),
+            directory=str(image_directory),
+        )
+
+        entity_result = self.walnut_mapper.file_dao_to_entity(walnut_file_dao)
+        if entity_result.is_left():
+            error = entity_result.value
+            self.logger.error("entity_creation_failed", error=str(error))
+            raise ValueError(f"Failed to create entity: {error}")
+
+        walnut_entity = entity_result.value
+        self.logger.debug("entity_created", walnut_id=walnut_entity.id)
+
+        walnut_dao = self.walnut_mapper.entity_to_dao(
+            walnut_entity,
+            description=f"Walnut loaded from filesystem",
+            created_by=SYSTEM_USER,
+            updated_by=SYSTEM_USER,
+            model_name=DEFAULT_EMBEDDING_MODEL,
+        )
+        self.logger.debug("entity_to_dao_converted", walnut_id=walnut_id)
+
+        saved_walnut = await self.walnut_writer.save_with_images_async(walnut_dao)
+        self.logger.info(
+            "walnut_saved",
+            walnut_id=walnut_entity.id,
+            image_count=len(saved_walnut.images),
+        )
+        return saved_walnut

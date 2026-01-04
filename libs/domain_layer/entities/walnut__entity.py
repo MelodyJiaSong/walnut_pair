@@ -1,0 +1,264 @@
+# domain_layer/entities/walnut__entity.py
+import uuid
+from typing import Dict, Optional
+
+import numpy as np
+from common.either import Either, Left, Right
+from common.enums import ImageMeasurementTypeEnum, WalnutDimensionTypeEnum, WalnutSideEnum
+from domain_layer.domain_error import DomainError, InvalidImageError, MissingSideError, ValidationError
+from domain_layer.value_objects.walnut_image__value_object import WalnutImageValueObject
+from domain_layer.value_objects.walnut_dimension__value_object import WalnutDimensionValueObject
+
+
+class WalnutEntity:
+    def __new__(
+        cls,
+        front: WalnutImageValueObject,
+        back: WalnutImageValueObject,
+        left: WalnutImageValueObject,
+        right: WalnutImageValueObject,
+        top: WalnutImageValueObject,
+        down: WalnutImageValueObject,
+    ) -> "WalnutEntity":
+        raise RuntimeError("WalnutEntity cannot be instantiated directly. Use WalnutEntity.create() instead.")
+
+    def __init__(
+        self,
+        front: WalnutImageValueObject,
+        back: WalnutImageValueObject,
+        left: WalnutImageValueObject,
+        right: WalnutImageValueObject,
+        top: WalnutImageValueObject,
+        down: WalnutImageValueObject,
+        walnut_id: str,
+        dimensions: WalnutDimensionValueObject,
+    ) -> None:
+        self._id: str = walnut_id
+        self.front: WalnutImageValueObject = front
+        self.back: WalnutImageValueObject = back
+        self.left: WalnutImageValueObject = left
+        self.right: WalnutImageValueObject = right
+        self.top: WalnutImageValueObject = top
+        self.down: WalnutImageValueObject = down
+        self.dimensions: WalnutDimensionValueObject = dimensions
+        self._initialized: bool = True
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if hasattr(self, "_initialized") and name == "_id":
+            raise AttributeError("Cannot modify _id after initialization")
+        super().__setattr__(name, value)
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def images(self) -> Dict[WalnutSideEnum, WalnutImageValueObject]:
+        """Get all images as a dictionary keyed by side."""
+        return {
+            WalnutSideEnum.FRONT: self.front,
+            WalnutSideEnum.BACK: self.back,
+            WalnutSideEnum.LEFT: self.left,
+            WalnutSideEnum.RIGHT: self.right,
+            WalnutSideEnum.TOP: self.top,
+            WalnutSideEnum.DOWN: self.down,
+        }
+
+    @staticmethod
+    def create(
+        front: WalnutImageValueObject,
+        back: WalnutImageValueObject,
+        left: WalnutImageValueObject,
+        right: WalnutImageValueObject,
+        top: WalnutImageValueObject,
+        down: WalnutImageValueObject,
+        walnut_id: Optional[str] = None,
+    ) -> Either["WalnutEntity", DomainError]:
+        """
+        Create a WalnutEntity with complete validation.
+        
+        Business rule: Entity is only created if all validations pass, including dimension calculation.
+        If dimensions cannot be calculated, the entity is not created and an error is returned.
+        """
+        # Generate ID if not provided
+        entity_id: str = walnut_id if walnut_id is not None else str(uuid.uuid4())
+        
+        # Calculate dimensions - this must succeed for entity to be created
+        dimension_result = WalnutEntity._calculate_dimensions(
+            front=front,
+            back=back,
+            left=left,
+            right=right,
+            top=top,
+            down=down,
+        )
+        if dimension_result.is_left():
+            return dimension_result
+        
+        # All validations passed, create the complete entity
+        entity = object.__new__(WalnutEntity)
+        entity.__init__(
+            front=front,
+            back=back,
+            left=left,
+            right=right,
+            top=top,
+            down=down,
+            walnut_id=entity_id,
+            dimensions=dimension_result.value,
+        )
+        
+        return Right(entity)
+
+    @staticmethod
+    def _calculate_dimensions(
+        front: WalnutImageValueObject,
+        back: WalnutImageValueObject,
+        left: WalnutImageValueObject,
+        right: WalnutImageValueObject,
+        top: WalnutImageValueObject,
+        down: WalnutImageValueObject,
+        min_valid_views: int = 2,
+    ) -> Either[WalnutDimensionValueObject, DomainError]:
+        """
+        Calculate walnut dimensions from image measurements.
+        
+        Business rules:
+        - Maps each view to walnut dimensions (width/height/thickness) based on view orientation
+        - Image measurements (x, y) are just pixel measurements with no domain meaning
+        - Aggregates measurements using median for robustness
+        - Requires minimum number of valid views per dimension
+        - Uses camera parameters (distance and focal length) from each image
+        
+        Returns:
+            Either with WalnutDimensionValueObject or DomainError
+        """
+        # Collect measurements from all images
+        # Mapping to walnut dimensions: width, height, thickness
+        pixel_measurements: Dict[WalnutDimensionTypeEnum, list[float]] = {
+            WalnutDimensionTypeEnum.WIDTH: [],
+            WalnutDimensionTypeEnum.HEIGHT: [],
+            WalnutDimensionTypeEnum.THICKNESS: [],
+        }
+        camera_distances: list[float] = []
+        focal_lengths: list[float] = []
+        
+        images = {
+            WalnutSideEnum.FRONT: front,
+            WalnutSideEnum.BACK: back,
+            WalnutSideEnum.LEFT: left,
+            WalnutSideEnum.RIGHT: right,
+            WalnutSideEnum.TOP: top,
+            WalnutSideEnum.DOWN: down,
+        }
+        
+        for side_enum, image_vo in images.items():
+            # Check if image has measurements
+            if image_vo.walnut_width_px <= 0 or image_vo.walnut_height_px <= 0:
+                continue  # Skip images without valid measurements
+            
+            camera_distances.append(image_vo.camera_distance_mm)
+            focal_lengths.append(image_vo.focal_length_px)
+            
+            # Business rule: Map each view to walnut dimensions
+            # Image x, y (pixel measurements) → walnut width, height, thickness
+            contribution = WalnutEntity._get_view_contribution(side_enum)
+            
+            for walnut_dimension, image_measurement_type in contribution.items():
+                if image_measurement_type == ImageMeasurementTypeEnum.WIDTH:
+                    pixel_measurements[walnut_dimension].append(image_vo.walnut_width_px)
+                elif image_measurement_type == ImageMeasurementTypeEnum.HEIGHT:
+                    pixel_measurements[walnut_dimension].append(image_vo.walnut_height_px)
+        
+        if not camera_distances:
+            return Left(ValidationError("No valid measurements found in images"))
+        
+        # Calculate scale (mm per pixel) using average camera parameters
+        # Business rule: Use average distance and focal length across all cameras
+        avg_distance = sum(camera_distances) / len(camera_distances)
+        avg_focal_length = sum(focal_lengths) / len(focal_lengths)
+        mm_per_px = avg_distance / avg_focal_length if avg_focal_length > 0 else 0.0
+        if mm_per_px <= 0:
+            return Left(ValidationError("Invalid camera parameters for dimension calculation"))
+        
+        # Aggregate dimensions
+        dimensions_mm = WalnutEntity._aggregate_dimensions(pixel_measurements, mm_per_px, min_valid_views)
+        
+        # Create value object with validation
+        return WalnutDimensionValueObject.create(
+            width_mm=dimensions_mm[WalnutDimensionTypeEnum.WIDTH],
+            height_mm=dimensions_mm[WalnutDimensionTypeEnum.HEIGHT],
+            thickness_mm=dimensions_mm[WalnutDimensionTypeEnum.THICKNESS],
+        )
+
+    @staticmethod
+    def _aggregate_dimensions(
+        pixel_measurements: Dict[WalnutDimensionTypeEnum, list[float]],
+        mm_per_pixel: float,
+        min_valid_views: int = 2,
+    ) -> Dict[WalnutDimensionTypeEnum, float]:
+        """
+        Aggregate pixel measurements into final walnut dimensions in mm.
+        
+        Business rule: Use median for robustness against outliers.
+        Business rule: Require minimum number of valid views.
+        """
+        result: Dict[WalnutDimensionTypeEnum, float] = {}
+        
+        for walnut_dimension in [WalnutDimensionTypeEnum.WIDTH, WalnutDimensionTypeEnum.HEIGHT, WalnutDimensionTypeEnum.THICKNESS]:
+            pixel_values = pixel_measurements.get(walnut_dimension, [])
+            # Filter out zeros (failed measurements)
+            valid_pixel_values = [v for v in pixel_values if v > 0]
+            
+            if len(valid_pixel_values) < min_valid_views:
+                result[walnut_dimension] = 0.0
+            else:
+                # Use median for robustness (business rule)
+                median_pixels = float(np.median(valid_pixel_values))
+                result[walnut_dimension] = median_pixels * mm_per_pixel
+        
+        return result
+
+    @staticmethod
+    def _get_view_contribution(side: WalnutSideEnum) -> Dict[WalnutDimensionTypeEnum, ImageMeasurementTypeEnum]:
+        """
+        Business rule: What each view contributes to which walnut dimension.
+        
+        Image measurements (x, y) are just pixel measurements with no domain meaning.
+        Walnut dimensions have semantic meaning:
+        - width: measured from FRONT/BACK/TOP/DOWN views
+        - height: measured from FRONT/BACK/LEFT/RIGHT views
+        - thickness: measured from LEFT/RIGHT/TOP/DOWN views
+        
+        Returns dict mapping walnut dimension to image measurement type.
+        """
+        mapping: Dict[WalnutSideEnum, Dict[WalnutDimensionTypeEnum, ImageMeasurementTypeEnum]] = {
+            # FRONT/BACK: image x → walnut width, image y → walnut height
+            WalnutSideEnum.FRONT: {
+                WalnutDimensionTypeEnum.WIDTH: ImageMeasurementTypeEnum.WIDTH,
+                WalnutDimensionTypeEnum.HEIGHT: ImageMeasurementTypeEnum.HEIGHT,
+            },
+            WalnutSideEnum.BACK: {
+                WalnutDimensionTypeEnum.WIDTH: ImageMeasurementTypeEnum.WIDTH,
+                WalnutDimensionTypeEnum.HEIGHT: ImageMeasurementTypeEnum.HEIGHT,
+            },
+            # LEFT/RIGHT: image x → walnut thickness, image y → walnut height
+            WalnutSideEnum.LEFT: {
+                WalnutDimensionTypeEnum.THICKNESS: ImageMeasurementTypeEnum.WIDTH,
+                WalnutDimensionTypeEnum.HEIGHT: ImageMeasurementTypeEnum.HEIGHT,
+            },
+            WalnutSideEnum.RIGHT: {
+                WalnutDimensionTypeEnum.THICKNESS: ImageMeasurementTypeEnum.WIDTH,
+                WalnutDimensionTypeEnum.HEIGHT: ImageMeasurementTypeEnum.HEIGHT,
+            },
+            # TOP/DOWN: image x → walnut width, image y → walnut thickness
+            WalnutSideEnum.TOP: {
+                WalnutDimensionTypeEnum.WIDTH: ImageMeasurementTypeEnum.WIDTH,
+                WalnutDimensionTypeEnum.THICKNESS: ImageMeasurementTypeEnum.HEIGHT,
+            },
+            WalnutSideEnum.DOWN: {
+                WalnutDimensionTypeEnum.WIDTH: ImageMeasurementTypeEnum.WIDTH,
+                WalnutDimensionTypeEnum.THICKNESS: ImageMeasurementTypeEnum.HEIGHT,
+            },
+        }
+        return mapping.get(side, {})

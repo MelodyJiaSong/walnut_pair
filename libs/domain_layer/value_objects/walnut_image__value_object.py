@@ -1,0 +1,51 @@
+# domain_layer/value_objects/walnut_image__value_object.py
+from dataclasses import dataclass
+from typing import Optional
+
+import numpy as np
+from common.constants import UNKNOWN_IMAGE_FORMAT
+from common.enums import WalnutSideEnum
+from PIL import Image
+
+
+@dataclass(frozen=True)
+class WalnutImageValueObject:
+    side: WalnutSideEnum
+    path: str
+    width: int
+    height: int
+    format: str
+    hash: str
+    embedding: np.ndarray
+    camera_distance_mm: float
+    focal_length_px: float
+    walnut_width_px: float
+    walnut_height_px: float
+
+
+    @classmethod
+    def from_path(
+        cls, path: str, 
+        side: WalnutSideEnum, 
+        embedding: np.ndarray, 
+        camera_distance_mm: float,
+        focal_length_px: float,
+        walnut_width_px: float,
+        walnut_height_px: float,
+    ) -> "WalnutImageValueObject":
+        img = Image.open(path)
+        img_hash = str(hash(img.tobytes()))
+        img_format = img.format or UNKNOWN_IMAGE_FORMAT
+        return cls(
+            side=side,
+            path=path,
+            width=img.width,
+            height=img.height,
+            format=img_format,
+            hash=img_hash,
+            embedding=embedding,
+            camera_distance_mm=camera_distance_mm,
+            focal_length_px=focal_length_px,
+            walnut_width_px=walnut_width_px,
+            walnut_height_px=walnut_height_px,
+        )
