@@ -1,0 +1,39 @@
+// Dark Theme Variables (Future)
+
+// Primary Colors
+$primary-color: #1890ff;
+$primary-color-hover: #40a9ff;
+$primary-color-active: #096dd9;
+
+// Secondary Colors
+$secondary-color: #52c41a;
+$secondary-color-hover: #73d13d;
+$secondary-color-active: #389e0d;
+
+// Text Colors
+$text-color: #ffffff;
+$text-color-secondary: rgba(255, 255, 255, 0.65);
+$text-color-disabled: rgba(255, 255, 255, 0.25);
+$text-color-inverse: #000000;
+
+// Background Colors
+$background-color: #141414;
+$background-color-light: #1f1f1f;
+$background-color-dark: #000000;
+
+// Border Colors
+$border-color: #434343;
+$border-color-light: #303030;
+$border-color-dark: #595959;
+
+// Status Colors
+$success-color: #52c41a;
+$warning-color: #faad14;
+$error-color: #ff4d4f;
+$info-color: #1890ff;
+
+// Shadow
+$box-shadow-base: 0 2px 8px rgba(0, 0, 0, 0.45);
+$box-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 6px rgba(0, 0, 0, 0.4);
+$box-shadow-drawer: -6px 0 16px rgba(0, 0, 0, 0.4);
+

@@ -1,0 +1,79 @@
+// Comparison Grid Styles
+
+@import '../../../../styles/variables__style.scss';
+@import '../../../../styles/themes/light__theme.scss';
+
+.comparison-grid {
+  width: 100%;
+
+  &__loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+  }
+
+  &__table-wrapper {
+    overflow-x: auto;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-sm;
+
+    thead {
+      background-color: $background-color-light;
+
+      th {
+        padding: $spacing-sm $spacing-md;
+        text-align: left;
+        font-weight: $font-weight-semibold;
+        border-bottom: 2px solid $border-color;
+        position: relative;
+        user-select: none;
+
+        .cursor-pointer {
+          cursor: pointer;
+
+          &:hover {
+            background-color: $background-color-dark;
+          }
+        }
+      }
+    }
+
+    tbody {
+      tr {
+        border-bottom: 1px solid $border-color-light;
+
+        &:hover {
+          background-color: $background-color-light;
+        }
+
+        td {
+          padding: $spacing-sm $spacing-md;
+        }
+      }
+    }
+
+    .resizer {
+      position: absolute;
+      right: 0;
+      top: 0;
+      height: 100%;
+      width: 5px;
+      background: rgba(0, 0, 0, 0.5);
+      cursor: col-resize;
+      user-select: none;
+      touch-action: none;
+
+      &.isResizing {
+        background: $primary-color;
+      }
+    }
+  }
+}
+

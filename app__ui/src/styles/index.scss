@@ -1,0 +1,9 @@
+// Main Style Entry Point
+// Import order matters - variables and mixins first, then themes, then base styles
+
+@import 'variables__style.scss';
+@import 'mixins__style.scss';
+@import 'themes/light__theme.scss';
+@import 'base__style.scss';
+@import 'antd-overrides__style.scss';
+

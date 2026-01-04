@@ -1,0 +1,12 @@
+// Left Sidebar Styles
+
+@import '../../../styles/variables__style.scss';
+@import '../../../styles/themes/light__theme.scss';
+
+.left-sidebar {
+  .ant-menu {
+    height: 100%;
+    border-right: 1px solid $border-color;
+  }
+}
+

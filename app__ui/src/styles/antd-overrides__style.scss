@@ -1,0 +1,44 @@
+// Ant Design Theme Overrides
+
+// Import Ant Design variables (if needed for customization)
+// @import '~antd/dist/antd.css';
+
+// Custom Ant Design component overrides
+.ant-layout {
+  min-height: 100vh;
+}
+
+.ant-layout-header {
+  padding: 0 $spacing-md;
+  background: $background-color;
+  box-shadow: $box-shadow-base;
+}
+
+.ant-layout-sider {
+  background: $background-color-light;
+  box-shadow: $box-shadow-base;
+}
+
+.ant-layout-content {
+  padding: $spacing-lg;
+  background: $background-color;
+  min-height: calc(100vh - 64px);
+}
+
+// Menu customizations
+.ant-menu {
+  border-right: none;
+}
+
+.ant-menu-item {
+  margin: 0;
+}
+
+// Table customizations (for TanStack Table integration)
+.ant-table {
+  .ant-table-thead > tr > th {
+    background: $background-color-light;
+    font-weight: $font-weight-semibold;
+  }
+}
+

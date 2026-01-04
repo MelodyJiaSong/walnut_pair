@@ -1,0 +1,39 @@
+// Light Theme Variables
+
+// Primary Colors
+$primary-color: #1890ff;
+$primary-color-hover: #40a9ff;
+$primary-color-active: #096dd9;
+
+// Secondary Colors
+$secondary-color: #52c41a;
+$secondary-color-hover: #73d13d;
+$secondary-color-active: #389e0d;
+
+// Text Colors
+$text-color: #000000;
+$text-color-secondary: rgba(0, 0, 0, 0.65);
+$text-color-disabled: rgba(0, 0, 0, 0.25);
+$text-color-inverse: #ffffff;
+
+// Background Colors
+$background-color: #ffffff;
+$background-color-light: #fafafa;
+$background-color-dark: #f0f0f0;
+
+// Border Colors
+$border-color: #d9d9d9;
+$border-color-light: #f0f0f0;
+$border-color-dark: #bfbfbf;
+
+// Status Colors
+$success-color: #52c41a;
+$warning-color: #faad14;
+$error-color: #ff4d4f;
+$info-color: #1890ff;
+
+// Shadow
+$box-shadow-base: 0 2px 8px rgba(0, 0, 0, 0.15);
+$box-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.03), 0 1px 6px rgba(0, 0, 0, 0.08);
+$box-shadow-drawer: -6px 0 16px rgba(0, 0, 0, 0.08);
+
