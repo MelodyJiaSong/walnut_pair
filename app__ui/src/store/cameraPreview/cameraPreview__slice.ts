@@ -8,6 +8,7 @@ interface CameraPreviewStateSerializable {
   availableCameras: CameraInfo[];
   activePreviews: string[]; // Array of unique_ids
   loading: boolean;
+  capturing: boolean; // True when capturing all cameras
   error: string | null;
 }
 
@@ -15,6 +16,7 @@ const initialState: CameraPreviewStateSerializable = {
   availableCameras: [],
   activePreviews: [],
   loading: false,
+  capturing: false,
   error: null,
 };
 
@@ -40,6 +42,9 @@ const cameraPreviewSlice = createSlice({
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
     },
+    setCapturing: (state, action: PayloadAction<boolean>) => {
+      state.capturing = action.payload;
+    },
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
     },
@@ -54,6 +59,7 @@ export const {
   addActivePreview,
   removeActivePreview,
   setLoading,
+  setCapturing,
   setError,
   clearError,
 } = cameraPreviewSlice.actions;

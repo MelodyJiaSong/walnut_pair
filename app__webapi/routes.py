@@ -17,4 +17,5 @@ CAMERA_PREVIEW_LIST: Final[str] = "/cameras"
 CAMERA_PREVIEW_START: Final[str] = "/start"
 CAMERA_PREVIEW_STOP: Final[str] = "/stop"
 CAMERA_PREVIEW_STREAM: Final[str] = "/stream"
+CAMERA_PREVIEW_CAPTURE: Final[str] = "/capture-all"
 

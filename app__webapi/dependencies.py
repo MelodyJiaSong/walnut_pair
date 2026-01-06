@@ -10,6 +10,7 @@ from application_layer.queries.camera__query import ICameraQuery, CameraQuery
 from application_layer.queries.walnut_comparison__query import IWalnutComparisonQuery
 from infrastructure_layer.services.camera__service import ICameraService, CameraService
 from infrastructure_layer.services.camera_preview__service import ICameraPreviewService, CameraPreviewService
+from infrastructure_layer.file_writers.image_file__writer import IImageFileWriter, ImageFileWriter
 from app__webapi.di_container import WebAPIContainer, bootstrap_webapi_container
 
 # Global container instance (Singleton scope)
@@ -19,6 +20,7 @@ _container: Optional[WebAPIContainer] = None
 _camera_service: Optional[ICameraService] = None
 _camera_preview_service: Optional[ICameraPreviewService] = None
 _camera_query: Optional[ICameraQuery] = None
+_image_file_writer: Optional[IImageFileWriter] = None
 
 
 def get_container() -> WebAPIContainer:
@@ -73,6 +75,14 @@ def get_camera_query(
     if _camera_query is None:
         _camera_query = CameraQuery(camera_service, max_scan_index=15)
     return _camera_query
+
+
+def get_image_file_writer() -> IImageFileWriter:
+    """Get image file writer (singleton)."""
+    global _image_file_writer
+    if _image_file_writer is None:
+        _image_file_writer = ImageFileWriter()
+    return _image_file_writer
 
 
 def get_walnut_comparison_query(

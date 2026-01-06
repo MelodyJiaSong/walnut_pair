@@ -13,4 +13,5 @@ export const CAMERA_PREVIEW_LIST = '/cameras';
 export const CAMERA_PREVIEW_START = '/start';
 export const CAMERA_PREVIEW_STOP = '/stop';
 export const CAMERA_PREVIEW_STREAM = '/stream';
+export const CAMERA_PREVIEW_CAPTURE = '/capture-all';
 

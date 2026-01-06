@@ -30,3 +30,8 @@ export const selectError = createSelector(
   (cameraPreview) => cameraPreview.error
 );
 
+export const selectCapturing = createSelector(
+  [selectCameraPreviewState],
+  (cameraPreview) => cameraPreview.capturing
+);
+

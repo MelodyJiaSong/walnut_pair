@@ -7,6 +7,7 @@ import {
   CAMERA_PREVIEW_START,
   CAMERA_PREVIEW_STOP,
   CAMERA_PREVIEW_STREAM,
+  CAMERA_PREVIEW_CAPTURE,
 } from './endpoints__constant';
 
 export interface CameraInfo {
@@ -37,6 +38,14 @@ export interface StopPreviewResponse {
   success: boolean;
   camera_unique_id: string;
   camera_index: number;
+}
+
+export interface CaptureAllResponse {
+  success: boolean;
+  captured_count: number;
+  total_cameras: number;
+  saved_paths: Array<{ [key: string]: string }>;
+  errors: string[];
 }
 
 /**
@@ -95,5 +104,15 @@ export const getCameraPreviewWebSocketUrl = (cameraUniqueId: string): string => 
   }
   
   return `${baseURL}${CAMERA_PREVIEW_BASE}${CAMERA_PREVIEW_STREAM}/ws?camera_unique_id=${encodeURIComponent(cameraUniqueId)}`;
+};
+
+/**
+ * Capture images from all available cameras simultaneously
+ */
+export const captureAllCameras = async (): Promise<CaptureAllResponse> => {
+  const response = await apiClient.post<CaptureAllResponse>(
+    `${CAMERA_PREVIEW_BASE}${CAMERA_PREVIEW_CAPTURE}`
+  );
+  return response.data;
 };
 

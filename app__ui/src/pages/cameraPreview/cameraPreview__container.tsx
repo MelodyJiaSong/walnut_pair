@@ -4,17 +4,19 @@
 
 import { useEffect } from 'react';
 import { Row, Col, Button, message, Spin } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CameraOutlined } from '@ant-design/icons';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   fetchAvailableCameras,
   startPreview,
   stopPreview,
+  captureAll,
 } from '../../store/cameraPreview/cameraPreview__saga';
 import {
   selectAvailableCameras,
   selectActivePreviews,
   selectLoading,
+  selectCapturing,
   selectError,
 } from '../../store/cameraPreview/cameraPreview__selector';
 import CameraPreviewItem from '../../features/cameraPreview/components/cameraPreviewItem/cameraPreviewItem__component';
@@ -25,6 +27,7 @@ export default function CameraPreviewContainer() {
   const availableCameras = useAppSelector(selectAvailableCameras);
   const activePreviews = useAppSelector(selectActivePreviews);
   const loading = useAppSelector(selectLoading);
+  const capturing = useAppSelector(selectCapturing);
   const error = useAppSelector(selectError);
 
   useEffect(() => {
@@ -33,7 +36,12 @@ export default function CameraPreviewContainer() {
 
   useEffect(() => {
     if (error) {
-      message.error(error);
+      // Show success message if it contains "Successfully captured"
+      if (error.includes('Successfully captured')) {
+        message.success(error);
+      } else {
+        message.error(error);
+      }
     }
   }, [error]);
 
@@ -57,6 +65,10 @@ export default function CameraPreviewContainer() {
 
   const handleRefresh = () => {
     dispatch(fetchAvailableCameras());
+  };
+
+  const handleCaptureAll = () => {
+    dispatch(captureAll());
   };
 
   if (loading && availableCameras.length === 0) {
@@ -83,9 +95,20 @@ export default function CameraPreviewContainer() {
     <div className="camera-preview-container">
       <div className="camera-preview-header">
         <h2>Camera Preview</h2>
-        <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
-          Refresh Cameras
-        </Button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button
+            type="primary"
+            icon={<CameraOutlined />}
+            onClick={handleCaptureAll}
+            loading={capturing}
+            disabled={availableCameras.length === 0}
+          >
+            Capture All
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+            Refresh Cameras
+          </Button>
+        </div>
       </div>
 
       <Row gutter={[16, 16]}>

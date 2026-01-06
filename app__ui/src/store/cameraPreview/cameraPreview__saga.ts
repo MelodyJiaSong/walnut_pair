@@ -5,6 +5,7 @@ import {
   getAvailableCameras,
   startCameraPreview,
   stopCameraPreview,
+  captureAllCameras,
   StartPreviewRequest,
   StopPreviewRequest,
 } from '../../api/cameraPreview__api';
@@ -13,6 +14,7 @@ import {
   addActivePreview,
   removeActivePreview,
   setLoading,
+  setCapturing,
   setError,
   clearError,
 } from './cameraPreview__slice';
@@ -21,6 +23,7 @@ import {
 const FETCH_AVAILABLE_CAMERAS = 'cameraPreview/fetchAvailableCameras';
 const START_PREVIEW = 'cameraPreview/startPreview';
 const STOP_PREVIEW = 'cameraPreview/stopPreview';
+const CAPTURE_ALL = 'cameraPreview/captureAll';
 
 export const fetchAvailableCameras = () => ({
   type: FETCH_AVAILABLE_CAMERAS,
@@ -34,6 +37,10 @@ export const startPreview = (request: StartPreviewRequest) => ({
 export const stopPreview = (request: StopPreviewRequest) => ({
   type: STOP_PREVIEW,
   payload: request,
+});
+
+export const captureAll = () => ({
+  type: CAPTURE_ALL,
 });
 
 // Sagas
@@ -86,10 +93,43 @@ function* stopPreviewSaga(action: { type: string; payload: StopPreviewRequest })
   }
 }
 
+function* captureAllSaga() {
+  try {
+    yield put(setCapturing(true));
+    yield put(clearError());
+    const response = yield call(captureAllCameras);
+    if (response.success) {
+      yield put(
+        setError(
+          `Successfully captured ${response.captured_count} of ${response.total_cameras} cameras`
+        )
+      );
+      if (response.errors && response.errors.length > 0) {
+        yield put(
+          setError(
+            `Captured ${response.captured_count}/${response.total_cameras} cameras. Errors: ${response.errors.join(', ')}`
+          )
+        );
+      }
+    } else {
+      yield put(
+        setError(
+          `Failed to capture cameras. Errors: ${response.errors?.join(', ') || 'Unknown error'}`
+        )
+      );
+    }
+  } catch (error: any) {
+    yield put(setError(error.message || 'Failed to capture all cameras'));
+  } finally {
+    yield put(setCapturing(false));
+  }
+}
+
 // Watchers
 export function* watchCameraPreview() {
   yield takeEvery(FETCH_AVAILABLE_CAMERAS, fetchAvailableCamerasSaga);
   yield takeEvery(START_PREVIEW, startPreviewSaga);
   yield takeEvery(STOP_PREVIEW, stopPreviewSaga);
+  yield takeEvery(CAPTURE_ALL, captureAllSaga);
 }
 
