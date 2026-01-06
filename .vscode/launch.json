@@ -1,25 +1,61 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Debug batch.main (WSL)",
-      "type": "python",
-      "request": "launch",
-
-      "module": "app__batch.main",
-      "cwd": "${workspaceFolder}",
-
-      "console": "integratedTerminal",
-
-      "justMyCode": false,
-      "subProcess": true,
-
-      "env": {
-        "PYTHONPATH": "${workspaceFolder}",
-        "PYTHONWARNINGS": "ignore::UserWarning:pkg_resources"
-      },
-
-      "envFile": "${workspaceFolder}/.env"
-    }
-  ]
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: WebAPI",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "app__webapi.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--reload"
+            ],
+            "jinja": true,
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: WebAPI (No Reload)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "app__webapi.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000"
+            ],
+            "jinja": true,
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Debug batch.main (WSL)",
+            "type": "python",
+            "request": "launch",
+            "module": "app__batch.main",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "subProcess": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "PYTHONWARNINGS": "ignore::UserWarning:pkg_resources"
+            },
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
 }
