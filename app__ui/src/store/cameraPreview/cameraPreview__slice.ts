@@ -51,6 +51,9 @@ const cameraPreviewSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    clearAllActivePreviews: (state) => {
+      state.activePreviews = [];
+    },
   },
 });
 
@@ -62,6 +65,7 @@ export const {
   setCapturing,
   setError,
   clearError,
+  clearAllActivePreviews,
 } = cameraPreviewSlice.actions;
 
 export default cameraPreviewSlice.reducer;

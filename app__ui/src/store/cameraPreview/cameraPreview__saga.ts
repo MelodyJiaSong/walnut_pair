@@ -17,6 +17,7 @@ import {
   setCapturing,
   setError,
   clearError,
+  clearAllActivePreviews,
 } from './cameraPreview__slice';
 
 // Action types
@@ -118,10 +119,15 @@ function* captureAllSaga() {
         )
       );
     }
+    // Clear active previews state after capture - previews may have been interrupted
+    // This allows user to restart previews by clicking "Preview All" again
+    yield put(clearAllActivePreviews());
     // Refresh camera list after capture to update preview state
     yield put(fetchAvailableCameras());
   } catch (error: any) {
     yield put(setError(error.message || 'Failed to capture all cameras'));
+    // Clear active previews state even on error
+    yield put(clearAllActivePreviews());
     // Refresh camera list even on error to update state
     yield put(fetchAvailableCameras());
   } finally {
