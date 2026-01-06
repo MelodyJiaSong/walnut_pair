@@ -333,11 +333,14 @@ class CameraService(ICameraService):
             List of CameraInfo objects with unique identifiers, sorted by logical ID
         """
         def _scan_sync() -> List[tuple]:
-            """Synchronously enumerate all cameras with their properties."""
+            """Synchronously enumerate all cameras with their properties and response times."""
             import warnings
+            import time
             cameras = []
+            camera_times = []
             
             for idx in range(max_index + 1):
+                start_time = time.time()
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     cap = cv2.VideoCapture(idx, cv2.CAP_MSMF)
@@ -357,7 +360,23 @@ class CameraService(ICameraService):
                     backend = cap.getBackendName() or "MSMF"
                     cap.release()
                     
+                    elapsed = time.time() - start_time
                     cameras.append((idx, width, height, fps, backend))
+                    camera_times.append((idx, elapsed))
+            
+            # Filter out fast camera (laptop camera) - keep only slow USB cameras
+            # Always filter out the fastest camera to exclude the laptop's built-in camera
+            if camera_times and len(camera_times) > 1:
+                # Sort by response time (fastest first)
+                camera_times.sort(key=lambda x: x[1])
+                
+                # Always filter out the fastest camera (laptop camera)
+                # Keep the remaining slow cameras (USB cameras)
+                fast_camera_index = camera_times[0][0]
+                
+                # Filter cameras list - remove the fastest camera
+                cameras = [(idx, w, h, f, b) for idx, w, h, f, b in cameras if idx != fast_camera_index]
+                self.logger.info(f"Filtered out fast camera (index: {fast_camera_index}), keeping {len(cameras)} slow USB cameras")
             
             return cameras
         

@@ -4,7 +4,7 @@
 
 import { useEffect } from 'react';
 import { Row, Col, Button, message, Spin } from 'antd';
-import { ReloadOutlined, CameraOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CameraOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   fetchAvailableCameras,
@@ -71,6 +71,32 @@ export default function CameraPreviewContainer() {
     dispatch(captureAll());
   };
 
+  const handlePreviewAll = () => {
+    // Dispatch start preview for all cameras that aren't already active
+    availableCameras.forEach((cameraInfo) => {
+      if (!activePreviews.includes(cameraInfo.unique_id)) {
+        dispatch(
+          startPreview({
+            camera_unique_id: cameraInfo.unique_id,
+            width: 640,
+            height: 480,
+          })
+        );
+      }
+    });
+  };
+
+  const handleStopAll = () => {
+    // Dispatch stop preview for all active cameras
+    activePreviews.forEach((cameraUniqueId) => {
+      dispatch(
+        stopPreview({
+          camera_unique_id: cameraUniqueId,
+        })
+      );
+    });
+  };
+
   if (loading && availableCameras.length === 0) {
     return (
       <div className="camera-preview-loading">
@@ -96,6 +122,21 @@ export default function CameraPreviewContainer() {
       <div className="camera-preview-header">
         <h2>Camera Preview</h2>
         <div style={{ display: 'flex', gap: '8px' }}>
+          <Button
+            type="primary"
+            icon={<PlayCircleOutlined />}
+            onClick={handlePreviewAll}
+            disabled={availableCameras.length === 0 || availableCameras.length === activePreviews.length}
+          >
+            Preview All
+          </Button>
+          <Button
+            icon={<StopOutlined />}
+            onClick={handleStopAll}
+            disabled={activePreviews.length === 0}
+          >
+            Stop All
+          </Button>
           <Button
             type="primary"
             icon={<CameraOutlined />}
