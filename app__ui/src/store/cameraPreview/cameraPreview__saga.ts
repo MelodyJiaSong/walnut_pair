@@ -118,8 +118,12 @@ function* captureAllSaga() {
         )
       );
     }
+    // Refresh camera list after capture to update preview state
+    yield put(fetchAvailableCameras());
   } catch (error: any) {
     yield put(setError(error.message || 'Failed to capture all cameras'));
+    // Refresh camera list even on error to update state
+    yield put(fetchAvailableCameras());
   } finally {
     yield put(setCapturing(false));
   }

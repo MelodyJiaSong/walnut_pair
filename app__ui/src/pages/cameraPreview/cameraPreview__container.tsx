@@ -126,7 +126,8 @@ export default function CameraPreviewContainer() {
             type="primary"
             icon={<PlayCircleOutlined />}
             onClick={handlePreviewAll}
-            disabled={availableCameras.length === 0 || availableCameras.length === activePreviews.length}
+            loading={loading && !capturing}
+            disabled={availableCameras.length === 0 || (availableCameras.length === activePreviews.length && activePreviews.length > 0)}
           >
             Preview All
           </Button>
