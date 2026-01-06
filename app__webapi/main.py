@@ -41,8 +41,10 @@ def create_app() -> FastAPI:
     )
 
     # Include routers
-    from app__webapi.routes import WALNUT_PAIRS_BASE
+    from app__webapi.routes import WALNUT_PAIRS_BASE, CAMERA_PREVIEW_BASE
+    from app__webapi.controllers import camera_preview__controller
     app.include_router(walnut_pairs__controller.router, prefix=WALNUT_PAIRS_BASE)
+    app.include_router(camera_preview__controller.router, prefix=CAMERA_PREVIEW_BASE)
 
     return app
 

@@ -11,3 +11,10 @@ WALNUT_PAIRS_LIST: Final[str] = "/"
 WALNUT_PAIRS_BY_WALNUT: Final[str] = "/walnut/{{walnut_id}}"
 WALNUT_PAIRS_SPECIFIC: Final[str] = "/walnut/{{walnut_id}}/compared/{{compared_walnut_id}}"
 
+# Camera preview routes
+CAMERA_PREVIEW_BASE: Final[str] = f"{API_V1_PREFIX}/camera-preview"
+CAMERA_PREVIEW_LIST: Final[str] = "/cameras"
+CAMERA_PREVIEW_START: Final[str] = "/start"
+CAMERA_PREVIEW_STOP: Final[str] = "/stop"
+CAMERA_PREVIEW_STREAM: Final[str] = "/stream"
+

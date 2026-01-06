@@ -67,16 +67,18 @@ export default function LeftSidebar({ collapsed: externalCollapsed, onCollapse }
 
   // Handle menu item click
   const handleMenuClick = ({ key }: { key: string }) => {
-    // Find the menu item by key
-    const findMenuItem = (items: typeof menuItems, targetKey: string): typeof menuItems[0] | null => {
+    // Find the menu item by key (check both parent and children)
+    const findMenuItem = (items: typeof menuItems, targetKey: string): { path?: string } | null => {
       for (const item of items) {
+        // Check if it's a parent item
         if (item.key === targetKey) {
           return item;
         }
+        // Check if it's a child item
         if (item.children) {
           for (const child of item.children) {
             if (child.key === targetKey) {
-              return child;
+              return child; // Return the child item, not the parent
             }
           }
         }
@@ -87,6 +89,8 @@ export default function LeftSidebar({ collapsed: externalCollapsed, onCollapse }
     const menuItem = findMenuItem(menuItems, key);
     if (menuItem && menuItem.path) {
       router.push(menuItem.path);
+    } else {
+      console.warn('Menu item not found or has no path:', key, menuItem);
     }
   };
 
@@ -101,7 +105,7 @@ export default function LeftSidebar({ collapsed: externalCollapsed, onCollapse }
       <Menu
         mode="inline"
         selectedKeys={findSelectedKey()}
-        defaultOpenKeys={['walnut-management']}
+        defaultOpenKeys={['walnut-management', 'camera-preview']}
         items={menuItemsToAntMenu(menuItems)}
         onClick={handleMenuClick}
       />

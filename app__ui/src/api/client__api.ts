@@ -8,7 +8,7 @@ const createApiClient = (): AxiosInstance => {
 
   const apiClient = axios.create({
     baseURL,
-    timeout: 30000,
+    timeout: 150000,  // 150 seconds (2.5 minutes) to accommodate 120 second camera opening timeout + buffer
     headers: {
       'Content-Type': 'application/json',
     },
