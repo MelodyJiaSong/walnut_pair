@@ -72,25 +72,24 @@ class CameraQuery(ICameraQuery):
     
     async def get_camera_by_unique_id_async(self, unique_id: str) -> Optional[CameraInfo]:
         """
-        Get camera information by unique identifier.
+        Get camera information by unique identifier (logical ID).
         
-        This method scans all cameras to find the matching unique_id.
-        Note: This can be slow if there are many cameras, but it ensures
-        we get the current index for the camera.
+        Scans cameras if needed to ensure mapping is up to date.
         """
+        # First try to get from mapping
+        camera = await self.camera_service.get_camera_by_unique_id_async(unique_id)
+        if camera:
+            return camera
+        
+        # If not found, rescan to update mapping
         try:
-            # Scan all cameras and find the one with matching unique_id
-            # Use asyncio.wait_for to prevent hanging if scan takes too long
             cameras = await asyncio.wait_for(
                 self.scan_available_cameras_async(),
-                timeout=180.0  # 3 minutes timeout for scanning (allows for slow cameras)
+                timeout=180.0
             )
-            for camera in cameras:
-                if camera.unique_id == unique_id:
-                    return camera
-            return None
+            # Try again after rescan
+            return await self.camera_service.get_camera_by_unique_id_async(unique_id)
         except asyncio.TimeoutError:
-            # If scan times out, log error but don't crash
             from common.logger import get_logger
             logger = get_logger(__name__)
             logger.error(f"Timeout scanning cameras to find unique_id '{unique_id}'")
