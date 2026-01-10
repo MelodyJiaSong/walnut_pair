@@ -1,0 +1,142 @@
+---
+description: Always consider documenting changes in rules and docs for future benefit
+globs: **/*
+alwaysApply: true
+---
+
+# Change Documentation and Rule Creation
+
+## Core Principle
+
+**For every change requested by the user, you MUST consider whether this change should be documented in the project's documentation or added as a cursor rule to benefit future development.**
+
+## Process Checklist
+
+When implementing any change, follow these steps:
+
+1. **After completing the change:**
+   - ✅ Review what was changed
+   - ✅ Consider if this represents a pattern that could recur
+   - ✅ Think about whether future developers would benefit from knowing this
+   - ✅ Determine if this should be:
+     - Added to an existing cursor rule
+     - Created as a new cursor rule
+     - Documented in project documentation (README, ARCHITECTURE.md, etc.)
+     - Both documented AND added as a rule
+
+2. **If you are unsure:**
+   - ❌ **DO NOT** skip this step
+   - ✅ **ALWAYS** ask the user explicitly:
+     - "Should this pattern/change be documented in [specific file] or added as a cursor rule?"
+     - "Would it be helpful to create a rule for [specific pattern] to guide future similar changes?"
+   - ✅ Explain why you think it might be beneficial
+
+3. **If the change represents a clear pattern:**
+   - ✅ Proactively suggest where it should be documented
+   - ✅ Offer to create the documentation or rule
+   - ✅ Wait for user confirmation before creating new rule files
+
+## When to Consider Documentation
+
+### Definitely Document:
+
+- **Architectural decisions**: New patterns, design choices, layer boundaries
+- **Naming conventions**: File naming, variable naming, function naming patterns
+- **Code organization**: Directory structure, file organization patterns
+- **Common patterns**: Repeated solutions to recurring problems
+- **Error handling**: How specific errors are handled
+- **Configuration patterns**: How settings/configs are structured
+- **Dependency patterns**: How dependencies are managed or injected
+- **Removal patterns**: How to safely remove features/apps (like the app__image_capture removal)
+
+### Possibly Document:
+
+- **One-off fixes**: If the fix reveals a pattern that might recur
+- **Optimization techniques**: Performance improvements that could be applied elsewhere
+- **Workarounds**: Temporary solutions that might be needed again
+- **Environment-specific handling**: Platform-specific code patterns
+
+### Examples from Recent Changes:
+
+✅ **Good example** (should be documented):
+- Removing an entire application (`app__image_capture`) - this shows:
+  - How to remove an app cleanly
+  - What related code to clean up (commands, handlers, Makefile, etc.)
+  - What directories/files to check for references
+
+✅ **Good example** (should be documented):
+- Desktop app structure (`app__desktop`) - this shows:
+  - How desktop apps are organized differently from web apps
+  - DI container patterns for desktop applications
+  - File splitting patterns for large modules
+
+## Implementation Steps
+
+1. **Complete the requested change first**
+2. **Review the change scope:**
+   ```python
+   # Example: Did we remove an entire application?
+   # - Deleted directory: app__image_capture/
+   # - Removed related commands/handlers
+   # - Updated Makefile
+   # - Cleaned up imports and references
+   # → This is a pattern worth documenting!
+   ```
+
+3. **Determine documentation type:**
+   - **Cursor Rule**: For patterns that should guide future code generation
+   - **Architecture Doc**: For architectural decisions and structure
+   - **README**: For setup, usage, or high-level overview
+   - **Code Comments**: For inline documentation of complex logic
+
+4. **Ask the user if unsure:**
+   ```
+   "I just completed [change description]. This seems like it could be a 
+   useful pattern to document. Should I:
+   - Add this to [specific rule/doc]?
+   - Create a new rule for [pattern]?
+   - Both?"
+   ```
+
+## Rule File Naming
+
+If creating a new rule, follow existing naming conventions:
+- Use `snake_case.mdc` format
+- Be descriptive: `app_removal_patterns.mdc`, `desktop_app_structure.mdc`
+- Place in `.cursor/rules/` directory
+
+## Example Conversation Flow
+
+**User**: "remove the app__image_capture, i don't need it anymore"
+
+**After completing removal:**
+```
+I've successfully removed app__image_capture and cleaned up all related code:
+- Deleted the entire app__image_capture directory
+- Removed ImageCaptureCommand and ImageCaptureCommandHandler
+- Updated Makefile to remove the capture target
+- Cleaned up all imports and references
+
+This removal involved several steps that could be useful as a pattern 
+for future app removals. Should I create a cursor rule documenting 
+the process for safely removing applications (including what to check, 
+what files to update, etc.)? This would help ensure consistent cleanup 
+in the future.
+```
+
+## Never Skip This Step
+
+- ❌ **DO NOT** assume the user doesn't want documentation
+- ❌ **DO NOT** skip asking just because you're "pretty sure" it's not needed
+- ✅ **ALWAYS** consider and ask if unsure
+- ✅ **ALWAYS** complete this evaluation for every change, no exceptions
+
+## Benefits
+
+Documenting changes helps:
+- Maintain consistency across the codebase
+- Onboard new developers faster
+- Prevent repeating mistakes
+- Capture architectural decisions
+- Build institutional knowledge
+- Make the codebase more maintainable

@@ -25,32 +25,27 @@ class AppConfig(IAppConfig):
         self,
         image_root: str,
         database: dict,
-        cameras: Optional[dict] = None,
-        algorithm: Optional[dict] = None,
+        algorithm: dict,
+        cameras: Optional[dict],
     ) -> None:
         # Normalize path based on current environment (WSL vs Windows)
         self._image_root: str = normalize_path(image_root)
         self._database: DatabaseConfig = DatabaseConfig(**database)
         
-        # Load algorithm configurations - fail if missing
-        if algorithm is None:
-            raise ValueError("Algorithm configuration is required in config.yml")
-        
-        comparison_mode : str = algorithm.get("comparison_mode")
-        if comparison_mode is None:
+        # Validate algorithm configuration fields explicitly
+        if "comparison_mode" not in algorithm:
             raise ValueError("Algorithm 'comparison_mode' is required in config.yml")
-        
-        basic_config = algorithm.get("basic")
-        if basic_config is None:
+        if "basic" not in algorithm:
             raise ValueError("Algorithm 'basic' configuration is required in config.yml")
-        
-        advanced_config = algorithm.get("advanced")
-        if advanced_config is None:
+        if "advanced" not in algorithm:
             raise ValueError("Algorithm 'advanced' configuration is required in config.yml")
-        
-        final_config = algorithm.get("final")
-        if final_config is None:
+        if "final" not in algorithm:
             raise ValueError("Algorithm 'final' configuration is required in config.yml")
+        
+        comparison_mode: str = algorithm["comparison_mode"]
+        basic_config = algorithm["basic"]
+        advanced_config = algorithm["advanced"]
+        final_config = algorithm["final"]
         
         self._algorithm: AlgorithmConfig = AlgorithmConfig(
             comparison_mode=comparison_mode,
@@ -100,7 +95,24 @@ class AppConfig(IAppConfig):
     def load_from_yaml(cls, yaml_path: Path) -> "AppConfig":
         with open(yaml_path, "r") as f:
             cfg = yaml.safe_load(f)
-        # Normalize image_root path if present
-        if "image_root" in cfg:
-            cfg["image_root"] = normalize_path(cfg["image_root"])
-        return cls(**cfg)
+        
+        # Validate required fields explicitly
+        if "image_root" not in cfg:
+            raise ValueError("Configuration file must include 'image_root'")
+        if "database" not in cfg:
+            raise ValueError("Configuration file must include 'database'")
+        if "algorithm" not in cfg:
+            raise ValueError("Configuration file must include 'algorithm'")
+        
+        # Normalize image_root path
+        cfg["image_root"] = normalize_path(cfg["image_root"])
+        
+        # Explicitly pass cameras (None if not present, since it's optional)
+        cameras = cfg["cameras"] if "cameras" in cfg else None
+        
+        return cls(
+            image_root=cfg["image_root"],
+            database=cfg["database"],
+            algorithm=cfg["algorithm"],
+            cameras=cameras,
+        )

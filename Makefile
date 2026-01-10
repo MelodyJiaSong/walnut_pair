@@ -1,4 +1,4 @@
-.PHONY: help type-check lint format fix check install test webapi batch capture ui
+.PHONY: help type-check lint format fix check install test webapi batch ui desktop
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -44,10 +44,6 @@ webapi: ## Run the WebAPI application
 batch: ## Run the batch processing application
 	@echo "Starting batch processing application..."
 	python -m app__batch.main
-
-capture: ## Run the image capture application
-	@echo "Starting image capture application..."
-	python -m app__image_capture.main
 
 ui: ## Run the UI application (Next.js)
 	@echo "Starting UI application on http://localhost:3000"

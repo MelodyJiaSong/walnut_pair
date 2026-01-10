@@ -63,5 +63,9 @@ class WebAPIAppConfig(IAppConfig):
         """Load configuration from YAML file."""
         with open(yaml_path, "r") as f:
             cfg = yaml.safe_load(f)
-        return cls(database=cfg.get("database", {}))
+        
+        if "database" not in cfg:
+            raise ValueError("Configuration file must include 'database' section")
+        
+        return cls(database=cfg["database"])
 

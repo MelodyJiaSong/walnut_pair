@@ -12,59 +12,47 @@ from common.path_utils import normalize_path
 @dataclass
 class CameraPreviewConfig:
     """Camera preview configuration."""
-    width: int = 640
-    height: int = 480
-    buffer_size: int = 1
-    fourcc: str = "MJPG"
-    auto_exposure: float = 0.75
+    width: int
+    height: int
+    buffer_size: int
+    fourcc: str
+    auto_exposure: float
 
 
 @dataclass
 class CameraCaptureConfig:
     """Camera capture configuration."""
-    output_folder: str = "_test"
-    filename_format: str = "{unique_id}_{timestamp}.jpg"
+    output_folder: str
+    filename_format: str
 
 
 @dataclass
 class CameraConfig:
     """Camera configuration."""
-    max_scan_index: int = 15
-    preview: Optional[CameraPreviewConfig] = None
-    capture: Optional[CameraCaptureConfig] = None
-
-    def __post_init__(self):
-        if self.preview is None:
-            self.preview = CameraPreviewConfig()
-        if self.capture is None:
-            self.capture = CameraCaptureConfig()
+    max_scan_index: int
+    preview: CameraPreviewConfig
+    capture: CameraCaptureConfig
 
 
 @dataclass
 class GridConfig:
     """Grid layout configuration."""
-    columns: int = 2
+    columns: int
 
 
 @dataclass
 class WindowConfig:
     """Window configuration."""
-    title: str = "Walnut Camera Preview"
-    min_width: int = 1280
-    min_height: int = 720
+    title: str
+    min_width: int
+    min_height: int
 
 
 @dataclass
 class UIConfig:
     """UI configuration."""
-    grid: Optional[GridConfig] = None
-    window: Optional[WindowConfig] = None
-
-    def __post_init__(self):
-        if self.grid is None:
-            self.grid = GridConfig()
-        if self.window is None:
-            self.window = WindowConfig()
+    grid: GridConfig
+    window: WindowConfig
 
 
 class DesktopAppConfig(IAppConfig):
@@ -73,29 +61,62 @@ class DesktopAppConfig(IAppConfig):
     def __init__(
         self,
         camera: dict,
-        ui: Optional[dict] = None,
+        ui: dict,
     ) -> None:
         """
         Initialize Desktop application configuration.
         
         Args:
             camera: Camera configuration dictionary
-            ui: UI configuration dictionary (optional)
+            ui: UI configuration dictionary
         """
-        # Camera configuration
-        camera_preview = camera.get("preview", {})
-        camera_capture = camera.get("capture", {})
+        # Camera configuration - all fields required
+        if "max_scan_index" not in camera:
+            raise ValueError("Camera configuration must include 'max_scan_index'")
+        if "preview" not in camera:
+            raise ValueError("Camera configuration must include 'preview'")
+        if "capture" not in camera:
+            raise ValueError("Camera configuration must include 'capture'")
+        
+        camera_preview = camera["preview"]
+        camera_capture = camera["capture"]
+        
+        # Validate preview config fields
+        required_preview_fields = ["width", "height", "buffer_size", "fourcc", "auto_exposure"]
+        for field in required_preview_fields:
+            if field not in camera_preview:
+                raise ValueError(f"Camera preview configuration must include '{field}'")
+        
+        # Validate capture config fields
+        required_capture_fields = ["output_folder", "filename_format"]
+        for field in required_capture_fields:
+            if field not in camera_capture:
+                raise ValueError(f"Camera capture configuration must include '{field}'")
         
         self._camera = CameraConfig(
-            max_scan_index=camera.get("max_scan_index", 15),
+            max_scan_index=camera["max_scan_index"],
             preview=CameraPreviewConfig(**camera_preview),
             capture=CameraCaptureConfig(**camera_capture),
         )
         
-        # UI configuration
-        ui_data = ui or {}
-        grid_data = ui_data.get("grid", {})
-        window_data = ui_data.get("window", {})
+        # UI configuration - all fields required
+        if "grid" not in ui:
+            raise ValueError("UI configuration must include 'grid'")
+        if "window" not in ui:
+            raise ValueError("UI configuration must include 'window'")
+        
+        grid_data = ui["grid"]
+        window_data = ui["window"]
+        
+        # Validate grid config fields
+        if "columns" not in grid_data:
+            raise ValueError("UI grid configuration must include 'columns'")
+        
+        # Validate window config fields
+        required_window_fields = ["title", "min_width", "min_height"]
+        for field in required_window_fields:
+            if field not in window_data:
+                raise ValueError(f"UI window configuration must include '{field}'")
         
         self._ui = UIConfig(
             grid=GridConfig(**grid_data),
@@ -156,12 +177,21 @@ class DesktopAppConfig(IAppConfig):
         with open(yaml_path, "r") as f:
             cfg = yaml.safe_load(f)
         
-        # Normalize output folder path if present
-        if "camera" in cfg and "capture" in cfg["camera"] and "output_folder" in cfg["camera"]["capture"]:
+        # Validate required fields explicitly
+        if "camera" not in cfg:
+            raise ValueError("Configuration file must include 'camera' section")
+        if "ui" not in cfg:
+            raise ValueError("Configuration file must include 'ui' section")
+        
+        # Normalize output folder path if it's an absolute path
+        if "capture" in cfg["camera"] and "output_folder" in cfg["camera"]["capture"]:
             output_folder = cfg["camera"]["capture"]["output_folder"]
             # If it's an absolute path, normalize it
             if output_folder.startswith("/") or output_folder.startswith("\\") or ":" in output_folder:
                 cfg["camera"]["capture"]["output_folder"] = normalize_path(output_folder)
         
-        return cls(**cfg)
+        return cls(
+            camera=cfg["camera"],
+            ui=cfg["ui"],
+        )
 
