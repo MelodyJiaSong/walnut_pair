@@ -55,6 +55,7 @@ class MainWindow(QMainWindow):
         # Camera-side mapping service
         self.mapping_service = CameraSideMappingService()
         self.camera_side_mapping: Dict[WalnutSideEnum, str] = {}
+        self.output_folder: str = ""
         
         # Walnut ID fields
         self.walnut_id_free_text: str = ""
@@ -67,8 +68,11 @@ class MainWindow(QMainWindow):
         
         self._setup_ui()
         
-        # Load camera-side mapping on startup
-        self.camera_side_mapping = self.mapping_service.load_mapping()
+        # Load camera-side mapping and output folder on startup
+        self.camera_side_mapping, self.output_folder = self.mapping_service.load_settings()
+        # If no output folder is configured, use default from config
+        if not self.output_folder:
+            self.output_folder = self.app_config.camera.capture.output_folder
         
         # Auto-scan cameras on startup
         QTimer.singleShot(500, self.scan_cameras)
@@ -164,8 +168,14 @@ class MainWindow(QMainWindow):
             if len(self.available_cameras) == 0:
                 QMessageBox.warning(self, "No Cameras", "No cameras found. Please check your connections.")
             else:
-                # Reload mapping and check if all mapped cameras are still available
-                self.camera_side_mapping = self.mapping_service.load_mapping()
+                # Reload mapping and output folder, then check if all mapped cameras are still available
+                self.camera_side_mapping, saved_output_folder = self.mapping_service.load_settings()
+                if saved_output_folder:
+                    self.output_folder = saved_output_folder
+                elif not self.output_folder:
+                    # Use default from config if no saved folder and no current folder
+                    self.output_folder = self.app_config.camera.capture.output_folder
+                
                 missing_cameras = []
                 for side, unique_id in self.camera_side_mapping.items():
                     if not any(cam.unique_id == unique_id for cam in self.available_cameras):
@@ -194,18 +204,21 @@ class MainWindow(QMainWindow):
         dialog = CameraSideMappingDialog(
             available_cameras=self.available_cameras,
             mapping_service=self.mapping_service,
+            default_output_folder=self.app_config.camera.capture.output_folder,
             parent=self
         )
         
         if dialog.exec() == dialog.DialogCode.Accepted:
             new_mapping = dialog.get_mapping()
+            new_output_folder = dialog.get_output_folder()
             self.camera_side_mapping = new_mapping
+            self.output_folder = new_output_folder
             
-            # Save mapping to file
-            if self.mapping_service.save_mapping(new_mapping):
-                QMessageBox.information(self, "Success", "Camera mapping saved successfully.")
+            # Save mapping and output folder to file
+            if self.mapping_service.save_settings(new_mapping, new_output_folder):
+                QMessageBox.information(self, "Success", "Settings saved successfully.")
             else:
-                QMessageBox.warning(self, "Warning", "Failed to save camera mapping to file.")
+                QMessageBox.warning(self, "Warning", "Failed to save settings to file.")
     
     def update_preview_grid(self):
         """Update the preview grid with available cameras."""
@@ -287,6 +300,7 @@ class MainWindow(QMainWindow):
                 preview_widgets=self.preview_widgets,
                 walnut_id_free_text=self.walnut_id_free_text.strip(),
                 walnut_id_number=self.walnut_id_number,
+                output_folder=self.output_folder,
             )
         
         loop = asyncio.new_event_loop()

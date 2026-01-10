@@ -41,6 +41,7 @@ class CameraCaptureService:
         preview_widgets: Dict[str, any],  # unique_id -> CameraPreviewWidget (optional)
         walnut_id_free_text: str,
         walnut_id_number: int,
+        output_folder: str,
     ) -> Tuple[int, int, List[str]]:
         """
         Capture images from all cameras based on side mapping.
@@ -51,6 +52,7 @@ class CameraCaptureService:
             preview_widgets: Dictionary mapping unique_id to CameraPreviewWidget instances
             walnut_id_free_text: Free text part of walnut ID
             walnut_id_number: Auto-increment number part of walnut ID
+            output_folder: Output folder path (can be relative or absolute)
             
         Returns:
             Tuple of (captured_count, total_sides, errors)
@@ -59,15 +61,20 @@ class CameraCaptureService:
         full_walnut_id = f"{walnut_id_free_text}__{walnut_id_number:04d}"
         
         # Get output folder path
-        output_folder_str = self.app_config.camera.capture.output_folder
-        output_folder = Path(output_folder_str)
-        if not output_folder.is_absolute():
+        # Use provided output_folder, or fall back to config if empty
+        if not output_folder:
+            output_folder_str = self.app_config.camera.capture.output_folder
+        else:
+            output_folder_str = output_folder
+        
+        output_folder_path = Path(output_folder_str)
+        if not output_folder_path.is_absolute():
             # Relative to workspace root (app__desktop -> walnut_pair)
             workspace_root = Path(__file__).parent.parent.parent
-            output_folder = workspace_root / output_folder_str
+            output_folder_path = workspace_root / output_folder_str
         
         # Create walnut-specific folder: {full_id}/
-        walnut_folder = output_folder / full_walnut_id
+        walnut_folder = output_folder_path / full_walnut_id
         walnut_folder.mkdir(parents=True, exist_ok=True)
         
         preview_config = self.app_config.camera.preview

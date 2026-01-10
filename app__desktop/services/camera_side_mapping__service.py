@@ -2,7 +2,7 @@
 """Service for managing camera-to-side mapping configuration."""
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from common.enums import WalnutSideEnum
 from common.logger import get_logger
@@ -27,42 +27,73 @@ class CameraSideMappingService:
         self.mapping_file_path = mapping_file_path
         self.logger = get_logger(__name__)
     
-    def load_mapping(self) -> Dict[WalnutSideEnum, str]:
+    def load_settings(self) -> Tuple[Dict[WalnutSideEnum, str], str]:
         """
-        Load camera-to-side mapping from file.
+        Load camera-to-side mapping and output folder from file.
         
         Returns:
-            Dictionary mapping WalnutSideEnum to camera unique_id
+            Tuple of (mapping dictionary, output_folder)
+            mapping: Dictionary mapping WalnutSideEnum to camera unique_id
+            output_folder: Output folder path string, or empty string if not set
         """
         if not self.mapping_file_path.exists():
             self.logger.info(f"Mapping file does not exist: {self.mapping_file_path}")
-            return {}
+            return {}, ""
         
         try:
             with open(self.mapping_file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             
-            # Convert string keys to WalnutSideEnum
+            # Convert string keys to WalnutSideEnum for mapping
             mapping: Dict[WalnutSideEnum, str] = {}
-            for side_str, camera_unique_id in data.items():
-                try:
-                    side_enum = WalnutSideEnum(side_str.lower())
-                    mapping[side_enum] = camera_unique_id
-                except ValueError:
-                    self.logger.warning(f"Invalid side '{side_str}' in mapping file, skipping")
+            output_folder = ""
             
-            self.logger.info(f"Loaded mapping from {self.mapping_file_path}: {len(mapping)} entries")
-            return mapping
+            for key, value in data.items():
+                if key == "output_folder":
+                    # Special key for output folder
+                    output_folder = str(value) if value else ""
+                else:
+                    # Regular side mapping
+                    try:
+                        side_enum = WalnutSideEnum(key.lower())
+                        mapping[side_enum] = value
+                    except ValueError:
+                        # Not a side enum, might be other metadata - skip
+                        pass
+            
+            self.logger.info(f"Loaded mapping from {self.mapping_file_path}: {len(mapping)} entries, output_folder: {output_folder}")
+            return mapping, output_folder
         except Exception as e:
             self.logger.error(f"Error loading mapping file: {e}")
-            return {}
+            return {}, ""
     
-    def save_mapping(self, mapping: Dict[WalnutSideEnum, str]) -> bool:
+    def load_mapping(self) -> Dict[WalnutSideEnum, str]:
         """
-        Save camera-to-side mapping to file.
+        Load camera-to-side mapping from file (backwards compatibility).
+        
+        Returns:
+            Dictionary mapping WalnutSideEnum to camera unique_id
+        """
+        mapping, _ = self.load_settings()
+        return mapping
+    
+    def get_output_folder(self) -> str:
+        """
+        Get the configured output folder from file.
+        
+        Returns:
+            Output folder path string, or empty string if not set
+        """
+        _, output_folder = self.load_settings()
+        return output_folder
+    
+    def save_settings(self, mapping: Dict[WalnutSideEnum, str], output_folder: str = "") -> bool:
+        """
+        Save camera-to-side mapping and output folder to file.
         
         Args:
             mapping: Dictionary mapping WalnutSideEnum to camera unique_id
+            output_folder: Output folder path string
             
         Returns:
             True if saved successfully, False otherwise
@@ -71,17 +102,35 @@ class CameraSideMappingService:
             # Convert WalnutSideEnum keys to strings
             data = {side.value: camera_unique_id for side, camera_unique_id in mapping.items()}
             
+            # Add output folder if provided
+            if output_folder:
+                data["output_folder"] = output_folder
+            
             # Ensure directory exists
             self.mapping_file_path.parent.mkdir(parents=True, exist_ok=True)
             
             with open(self.mapping_file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
             
-            self.logger.info(f"Saved mapping to {self.mapping_file_path}: {len(mapping)} entries")
+            self.logger.info(f"Saved settings to {self.mapping_file_path}: {len(mapping)} entries, output_folder: {output_folder}")
             return True
         except Exception as e:
-            self.logger.error(f"Error saving mapping file: {e}")
+            self.logger.error(f"Error saving settings file: {e}")
             return False
+    
+    def save_mapping(self, mapping: Dict[WalnutSideEnum, str]) -> bool:
+        """
+        Save camera-to-side mapping to file (backwards compatibility, preserves output_folder).
+        
+        Args:
+            mapping: Dictionary mapping WalnutSideEnum to camera unique_id
+            
+        Returns:
+            True if saved successfully, False otherwise
+        """
+        # Load existing output_folder to preserve it
+        existing_folder = self.get_output_folder()
+        return self.save_settings(mapping, existing_folder)
     
     def get_camera_for_side(
         self,

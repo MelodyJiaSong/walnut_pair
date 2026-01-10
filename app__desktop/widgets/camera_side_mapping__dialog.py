@@ -6,9 +6,13 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
+    QLineEdit,
     QComboBox,
+    QPushButton,
     QVBoxLayout,
     QMessageBox,
 )
@@ -26,6 +30,7 @@ class CameraSideMappingDialog(QDialog):
         self,
         available_cameras: List[CameraInfo],
         mapping_service: CameraSideMappingService,
+        default_output_folder: str = "",
         parent=None
     ):
         """
@@ -34,21 +39,24 @@ class CameraSideMappingDialog(QDialog):
         Args:
             available_cameras: List of available cameras
             mapping_service: Service for loading/saving mapping
+            default_output_folder: Default output folder from config (used if not set in saved settings)
             parent: Parent widget
         """
         super().__init__(parent)
         self.available_cameras = available_cameras
         self.mapping_service = mapping_service
+        self.default_output_folder = default_output_folder
         self.logger = get_logger(__name__)
         
-        self.setWindowTitle("Camera to Side Mapping")
-        self.setMinimumWidth(400)
+        self.setWindowTitle("Camera to Side Mapping & Settings")
+        self.setMinimumWidth(500)
         
         # ComboBoxes for each side
         self.side_combos: Dict[WalnutSideEnum, QComboBox] = {}
+        self.output_folder_input: Optional[QLineEdit] = None
         
         self._setup_ui()
-        self._load_current_mapping()
+        self._load_current_settings()
     
     def _setup_ui(self):
         """Set up the dialog UI."""
@@ -56,11 +64,38 @@ class CameraSideMappingDialog(QDialog):
         
         # Instructions
         instructions = QLabel(
-            "Assign each camera to a walnut side.\n"
+            "Configure camera-to-side mapping and output folder.\n"
             "Each side must have a unique camera assigned."
         )
         instructions.setWordWrap(True)
         layout.addWidget(instructions)
+        
+        # Output folder configuration section
+        output_folder_label = QLabel("Output Folder:")
+        output_folder_label.setStyleSheet("font-weight: bold;")
+        layout.addWidget(output_folder_label)
+        
+        self.output_folder_input = QLineEdit()
+        self.output_folder_input.setPlaceholderText("Enter folder path or click Browse...")
+        
+        browse_button = QPushButton("Browse...")
+        browse_button.clicked.connect(self._browse_output_folder)
+        
+        output_folder_layout = QHBoxLayout()
+        output_folder_layout.addWidget(self.output_folder_input)
+        output_folder_layout.addWidget(browse_button)
+        
+        layout.addLayout(output_folder_layout)
+        
+        # Separator
+        separator = QLabel("")
+        separator.setMinimumHeight(10)
+        layout.addWidget(separator)
+        
+        # Camera mapping section
+        mapping_label = QLabel("Camera to Side Mapping:")
+        mapping_label.setStyleSheet("font-weight: bold;")
+        layout.addWidget(mapping_label)
         
         # Form layout for side selection
         form_layout = QFormLayout()
@@ -90,10 +125,27 @@ class CameraSideMappingDialog(QDialog):
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
     
-    def _load_current_mapping(self):
-        """Load current mapping and populate comboboxes."""
-        mapping = self.mapping_service.load_mapping()
+    def _browse_output_folder(self):
+        """Open file dialog to browse for output folder."""
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select Output Folder",
+            self.output_folder_input.text() or ".",
+            QFileDialog.Option.ShowDirsOnly
+        )
+        if folder:
+            self.output_folder_input.setText(folder)
+    
+    def _load_current_settings(self):
+        """Load current mapping and output folder, then populate UI."""
+        mapping, output_folder = self.mapping_service.load_settings()
         
+        # Load output folder - use saved folder or fall back to default from config
+        if self.output_folder_input:
+            display_folder = output_folder if output_folder else self.default_output_folder
+            self.output_folder_input.setText(display_folder)
+        
+        # Load mapping
         for side, camera_unique_id in mapping.items():
             combo = self.side_combos.get(side)
             if combo is None:
@@ -163,4 +215,15 @@ class CameraSideMappingDialog(QDialog):
                 mapping[side] = camera_unique_id
         
         return mapping
+    
+    def get_output_folder(self) -> str:
+        """
+        Get the output folder from the dialog.
+        
+        Returns:
+            Output folder path string
+        """
+        if self.output_folder_input:
+            return self.output_folder_input.text().strip()
+        return ""
 
