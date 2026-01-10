@@ -105,7 +105,7 @@ export default function LeftSidebar({ collapsed: externalCollapsed, onCollapse }
       <Menu
         mode="inline"
         selectedKeys={findSelectedKey()}
-        defaultOpenKeys={['walnut-management', 'camera-preview']}
+        defaultOpenKeys={['walnut-management']}
         items={menuItemsToAntMenu(menuItems)}
         onClick={handleMenuClick}
       />

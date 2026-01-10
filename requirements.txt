@@ -23,4 +23,5 @@ PyYAML>=6.0
 black>=23.7.0        # Optional but recommended for autoformatting
 isort>=5.12.0        # Optional for import sorting
 structlog>=23.2.0    # Structured logging
+PyQt6>=6.6.0         # PyQt6 for desktop GUI application
 

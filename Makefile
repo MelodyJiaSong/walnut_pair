@@ -53,3 +53,7 @@ ui: ## Run the UI application (Next.js)
 	@echo "Starting UI application on http://localhost:3000"
 	cd app__ui && npm run dev
 
+desktop: ## Run the desktop GUI application
+	@echo "Starting desktop camera preview application..."
+	python -m app__desktop.main
+

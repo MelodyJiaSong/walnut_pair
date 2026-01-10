@@ -6,21 +6,13 @@ from typing import AsyncGenerator, Optional
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from application_layer.queries.camera__query import ICameraQuery, CameraQuery
 from application_layer.queries.walnut_comparison__query import IWalnutComparisonQuery
-from infrastructure_layer.services.camera__service import ICameraService, CameraService
-from infrastructure_layer.services.camera_preview__service import ICameraPreviewService, CameraPreviewService
-from infrastructure_layer.file_writers.image_file__writer import IImageFileWriter, ImageFileWriter
 from app__webapi.di_container import WebAPIContainer, bootstrap_webapi_container
 
 # Global container instance (Singleton scope)
 _container: Optional[WebAPIContainer] = None
 
 # Global singleton services
-_camera_service: Optional[ICameraService] = None
-_camera_preview_service: Optional[ICameraPreviewService] = None
-_camera_query: Optional[ICameraQuery] = None
-_image_file_writer: Optional[IImageFileWriter] = None
 
 
 def get_container() -> WebAPIContainer:
@@ -49,42 +41,6 @@ async def get_session(
         await session.close()
 
 
-def get_camera_service() -> ICameraService:
-    """Get camera service (singleton)."""
-    global _camera_service
-    if _camera_service is None:
-        _camera_service = CameraService()
-    return _camera_service
-
-
-def get_camera_preview_service(
-    camera_service: ICameraService = Depends(get_camera_service),
-) -> ICameraPreviewService:
-    """Get camera preview service (singleton)."""
-    global _camera_preview_service
-    if _camera_preview_service is None:
-        _camera_preview_service = CameraPreviewService(camera_service)
-    return _camera_preview_service
-
-
-def get_camera_query(
-    camera_service: ICameraService = Depends(get_camera_service),
-) -> ICameraQuery:
-    """Get camera query service (singleton)."""
-    global _camera_query
-    if _camera_query is None:
-        _camera_query = CameraQuery(camera_service, max_scan_index=15)
-    return _camera_query
-
-
-def get_image_file_writer() -> IImageFileWriter:
-    """Get image file writer (singleton)."""
-    global _image_file_writer
-    if _image_file_writer is None:
-        _image_file_writer = ImageFileWriter()
-    return _image_file_writer
-
-
 def get_walnut_comparison_query(
     session: AsyncSession = Depends(get_session),
     container: WebAPIContainer = Depends(get_container),
@@ -105,38 +61,7 @@ def get_walnut_comparison_query(
 
 def shutdown_container() -> None:
     """Clean up container resources on shutdown."""
-    global _container, _camera_preview_service
-    if _camera_preview_service is not None:
-        # Stop all active previews gracefully
-        import asyncio
-        try:
-            active_cameras = list(_camera_preview_service.get_active_cameras())
-            if active_cameras:
-                # Create tasks to stop all previews
-                tasks = [
-                    _camera_preview_service.stop_preview_async(camera_index)
-                    for camera_index in active_cameras
-                ]
-                # Run cleanup synchronously if possible, or create tasks
-                loop = None
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        # If loop is running, create tasks
-                        for task in tasks:
-                            asyncio.create_task(task)
-                    else:
-                        # If loop exists but not running, run cleanup
-                        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-                except RuntimeError:
-                    # No event loop, create a new one for cleanup
-                    asyncio.run(asyncio.gather(*tasks, return_exceptions=True))
-        except Exception as e:
-            # Log but don't fail on shutdown cleanup
-            import logging
-            logging.getLogger(__name__).warning(f"Error during camera preview cleanup: {e}")
-        finally:
-            _camera_preview_service = None
+    global _container
     if _container is not None:
         try:
             session_factory = _container.session_factory()

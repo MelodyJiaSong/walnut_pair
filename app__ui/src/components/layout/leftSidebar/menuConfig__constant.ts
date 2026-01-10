@@ -1,6 +1,6 @@
 // Menu Configuration
 
-import { DatabaseOutlined, VideoCameraOutlined } from '@ant-design/icons';
+import { DatabaseOutlined } from '@ant-design/icons';
 import { MenuItem } from './leftSidebar__type';
 import { ReactElement } from 'react';
 
@@ -26,18 +26,6 @@ export const menuItems: MenuItem[] = [
       //   label: 'Image Upload',
       //   path: '/image-upload',
       // },
-    ],
-  },
-  {
-    key: 'camera-preview',
-    label: 'Camera Preview',
-    icon: VideoCameraOutlined as unknown as ReactElement,
-    children: [
-      {
-        key: 'camera-preview-live',
-        label: 'Live Preview',
-        path: '/camera-preview',
-      },
     ],
   },
   // Future menu items:
