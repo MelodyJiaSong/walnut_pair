@@ -1,0 +1,22 @@
+# Desktop Camera Preview Application Configuration
+
+camera:
+  max_scan_index: 15  # Maximum camera index to scan (0 to max_scan_index)
+  preview:
+    width: 640
+    height: 480
+    buffer_size: 1
+    fourcc: "MJPG"
+    auto_exposure: 0.75
+  capture:
+    output_folder: "_test"  # Relative to workspace root
+    filename_format: "{unique_id}_{timestamp}.jpg"  # Format: {unique_id}_{timestamp}.jpg
+
+ui:
+  grid:
+    columns: 2  # Number of columns in preview grid
+  window:
+    title: "Walnut Camera Preview"
+    min_width: 1280
+    min_height: 720
+
