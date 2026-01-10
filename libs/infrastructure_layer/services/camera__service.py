@@ -4,7 +4,6 @@ import asyncio
 import hashlib
 import json
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Dict, List, Optional
 
 import cv2
@@ -120,7 +119,7 @@ class ICameraService(ABC):
 class CameraService(ICameraService):
     """Implementation of camera service using OpenCV."""
 
-    def __init__(self, registry_file: Optional[Path] = None) -> None:
+    def __init__(self) -> None:
         self.logger = get_logger(__name__)
         # Reduce OpenCV log verbosity - suppress warnings
         try:
@@ -134,10 +133,7 @@ class CameraService(ICameraService):
         except Exception:
             pass
         
-        # Initialize camera registry for stable identification
-        if registry_file is None:
-            registry_file = Path(__file__).parent.parent.parent.parent / ".camera_registry.json"
-        self.registry_file = registry_file
+        # Initialize in-memory camera mapping (no persistence)
         self._camera_mapping: Dict[str, CameraInfo] = {}  # logical_id -> CameraInfo
         self._index_to_logical: Dict[int, str] = {}  # index -> logical_id
 
@@ -282,25 +278,6 @@ class CameraService(ICameraService):
             timeout=120.0
         )
     
-    def _load_mapping(self) -> Dict[str, Dict]:
-        """Load camera mapping from registry file."""
-        if not self.registry_file.exists():
-            return {}
-        try:
-            with open(self.registry_file, 'r') as f:
-                return json.load(f)
-        except Exception as e:
-            self.logger.warning(f"Failed to load camera mapping: {e}")
-            return {}
-    
-    def _save_mapping(self, mapping: Dict[str, Dict]) -> None:
-        """Save camera mapping to registry file."""
-        try:
-            with open(self.registry_file, 'w') as f:
-                json.dump(mapping, f, indent=2)
-            self.logger.debug(f"Saved camera mapping to {self.registry_file}")
-        except Exception as e:
-            self.logger.warning(f"Failed to save camera mapping: {e}")
     
     def _get_camera_props(self, index: int) -> tuple:
         """Get camera properties synchronously."""
@@ -321,10 +298,10 @@ class CameraService(ICameraService):
     
     async def scan_available_cameras_async(self, max_index: int) -> List[CameraInfo]:
         """
-        Scan for available cameras and return unique identifiers with stable logical IDs.
+        Scan for available cameras and return unique identifiers with logical IDs.
         
-        Uses deterministic enumeration + fingerprinting to assign logical IDs (cam_0, cam_1, ...)
-        that remain stable during runtime and across app reloads.
+        Assigns fresh logical IDs (cam_0, cam_1, ...) based on camera index order.
+        IDs are assigned fresh on each scan (no persistence).
         
         Args:
             max_index: Maximum camera index to scan (0 to max_index)
@@ -380,71 +357,33 @@ class CameraService(ICameraService):
             
             return cameras
         
-        # Step 1: Enumerate all available cameras
+        # Enumerate all available cameras
         enumerated = await asyncio.to_thread(_scan_sync)
         if not enumerated:
             return []
         
-        # Step 2: Load existing mapping
-        old_mapping = self._load_mapping()
+        # Sort cameras by index for deterministic ordering
+        enumerated.sort(key=lambda x: x[0])  # Sort by index
         
-        # Step 3: Create fingerprint -> camera data mapping
-        current_by_fingerprint: Dict[str, tuple] = {}
-        for idx, width, height, fps, backend in enumerated:
-            fingerprint = self._create_fingerprint(idx, width, height, fps, backend)
-            current_by_fingerprint[fingerprint] = (idx, width, height, fps, backend)
-        
-        # Step 4: Reconcile with existing mapping
-        result: Dict[str, tuple] = {}  # logical_id -> (index, width, height, fps, backend)
-        used_fingerprints = set()
-        
-        # Match existing logical IDs by fingerprint
-        for logical_id, old_data in old_mapping.items():
-            old_fingerprint = old_data.get('fingerprint')
-            if old_fingerprint and old_fingerprint in current_by_fingerprint:
-                result[logical_id] = current_by_fingerprint[old_fingerprint]
-                used_fingerprints.add(old_fingerprint)
-                self.logger.debug(f"Matched {logical_id} to camera at index {result[logical_id][0]}")
-        
-        # Step 5: Assign new logical IDs to unmatched cameras (sorted by index for determinism)
-        unmatched = [
-            (fingerprint, data) for fingerprint, data in current_by_fingerprint.items()
-            if fingerprint not in used_fingerprints
-        ]
-        unmatched.sort(key=lambda x: x[1][0])  # Sort by index
-        
-        next_id = len(result)
-        for fingerprint, data in unmatched:
-            logical_id = f"cam_{next_id}"
-            result[logical_id] = data
-            next_id += 1
-            self.logger.debug(f"Assigned new {logical_id} to camera at index {data[0]}")
-        
-        # Step 6: Create CameraInfo objects and save mapping
+        # Assign fresh logical IDs starting from cam_0
         final_cameras: List[CameraInfo] = []
-        new_mapping: Dict[str, Dict] = {}
+        self._camera_mapping.clear()
+        self._index_to_logical.clear()
         
-        for logical_id, (index, width, height, fps, backend) in sorted(
-            result.items(), key=lambda x: int(x[0].split('_')[1]) if '_' in x[0] else 999
-        ):
-            fingerprint = self._create_fingerprint(index, width, height, fps, backend)
+        for logical_id_num, (index, width, height, fps, backend) in enumerate(enumerated):
+            logical_id = f"cam_{logical_id_num}"
             
             cam_info = CameraInfo(
-                unique_id=logical_id,  # Use logical_id as unique_id for stability
+                unique_id=logical_id,
                 index=index,
-                name=f"Camera {logical_id.split('_')[1] if '_' in logical_id else '?'}"
+                name=f"Camera {logical_id_num}"
             )
             final_cameras.append(cam_info)
             
-            new_mapping[logical_id] = {
-                'fingerprint': fingerprint,
-                'index': index,
-            }
-            
+            self._camera_mapping[logical_id] = cam_info
             self._index_to_logical[index] = logical_id
         
-        self._camera_mapping = {cam.unique_id: cam for cam in final_cameras}
-        self._save_mapping(new_mapping)
+        self.logger.info(f"Scanned {len(final_cameras)} cameras, assigned IDs: {[cam.unique_id for cam in final_cameras]}")
         
         return final_cameras
     

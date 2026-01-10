@@ -13,20 +13,6 @@ from app__webapi.dependencies import get_container, shutdown_container
 async def lifespan(app: FastAPI):
     """Manage application lifespan."""
     # Startup
-    # Clear camera registry file for clean start
-    from pathlib import Path
-    registry_file = Path(__file__).parent.parent / ".camera_registry.json"
-    if registry_file.exists():
-        try:
-            registry_file.unlink()
-            from common.logger import get_logger
-            logger = get_logger(__name__)
-            logger.info(f"Cleared camera registry file: {registry_file}")
-        except Exception as e:
-            from common.logger import get_logger
-            logger = get_logger(__name__)
-            logger.warning(f"Failed to clear camera registry file: {e}")
-    
     get_container()
     yield
     # Shutdown
