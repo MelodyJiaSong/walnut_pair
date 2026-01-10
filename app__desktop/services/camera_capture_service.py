@@ -1,11 +1,11 @@
 # app__desktop/services/camera_capture_service.py
 """Service for capturing images from cameras."""
 import asyncio
-from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 from common.camera_info import CameraInfo
+from common.enums import WalnutSideEnum
 from common.logger import get_logger
 from infrastructure_layer.services.camera__service import ICameraService
 from infrastructure_layer.file_writers.image_file__writer import IImageFileWriter
@@ -36,19 +36,28 @@ class CameraCaptureService:
     
     async def capture_all_cameras_async(
         self,
-        cameras: List[CameraInfo],
-        preview_widgets: dict[str, any],  # unique_id -> CameraPreviewWidget (optional)
+        camera_side_mapping: Dict[WalnutSideEnum, str],
+        available_cameras: List[CameraInfo],
+        preview_widgets: Dict[str, any],  # unique_id -> CameraPreviewWidget (optional)
+        walnut_id_free_text: str,
+        walnut_id_number: int,
     ) -> Tuple[int, int, List[str]]:
         """
-        Capture images from all cameras simultaneously.
+        Capture images from all cameras based on side mapping.
         
         Args:
-            cameras: List of available cameras
+            camera_side_mapping: Dictionary mapping WalnutSideEnum to camera unique_id
+            available_cameras: List of available cameras
             preview_widgets: Dictionary mapping unique_id to CameraPreviewWidget instances
+            walnut_id_free_text: Free text part of walnut ID
+            walnut_id_number: Auto-increment number part of walnut ID
             
         Returns:
-            Tuple of (captured_count, total_cameras, errors)
+            Tuple of (captured_count, total_sides, errors)
         """
+        # Build full walnut ID: {free_text}__{number}
+        full_walnut_id = f"{walnut_id_free_text}__{walnut_id_number:04d}"
+        
         # Get output folder path
         output_folder_str = self.app_config.camera.capture.output_folder
         output_folder = Path(output_folder_str)
@@ -57,28 +66,38 @@ class CameraCaptureService:
             workspace_root = Path(__file__).parent.parent.parent
             output_folder = workspace_root / output_folder_str
         
-        output_folder.mkdir(parents=True, exist_ok=True)
-        
-        # Generate timestamp for this capture session
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Create walnut-specific folder: {full_id}/
+        walnut_folder = output_folder / full_walnut_id
+        walnut_folder.mkdir(parents=True, exist_ok=True)
         
         preview_config = self.app_config.camera.preview
-        capture_config = self.app_config.camera.capture
+        
+        # Build mapping from unique_id to CameraInfo for faster lookup
+        unique_id_to_camera: Dict[str, CameraInfo] = {}
+        for camera in available_cameras:
+            unique_id_to_camera[camera.unique_id] = camera
         
         captured_count = 0
         errors = []
         
-        async def capture_from_camera(camera_info: CameraInfo) -> Tuple[bool, str]:
-            """Capture a frame from a single camera."""
+        async def capture_from_side(side: WalnutSideEnum, camera_unique_id: str) -> Tuple[bool, str]:
+            """Capture a frame from a camera for a specific side."""
+            # Find camera info to get index
+            camera_info = unique_id_to_camera.get(camera_unique_id)
+            if camera_info is None:
+                return False, f"Camera {camera_unique_id} not found for side {side.value}"
+            
             # Check if camera is already open in preview widget
-            widget = preview_widgets.get(camera_info.unique_id) if preview_widgets else None
+            widget = preview_widgets.get(camera_unique_id) if preview_widgets else None
             handle = None
             should_close_handle = False
             
             if widget is not None and widget.camera_handle is not None:
                 # Camera is already open in preview, use its handle
                 handle = widget.camera_handle
-                frame = await self.camera_service.capture_frame_async(handle)
+                frame = widget.capture_frame()
+                if frame is None:
+                    frame = await self.camera_service.capture_frame_async(handle)
             else:
                 # Open camera temporarily for capture
                 handle = await self.camera_service.open_camera_async(
@@ -91,7 +110,7 @@ class CameraCaptureService:
                 )
                 
                 if handle is None:
-                    return False, f"Failed to open {camera_info.unique_id}"
+                    return False, f"Failed to open {camera_unique_id} for side {side.value}"
                 
                 should_close_handle = True
                 frame = await self.camera_service.capture_frame_async(handle)
@@ -101,28 +120,28 @@ class CameraCaptureService:
                 try:
                     await self.camera_service.close_camera_async(handle)
                 except Exception as e:
-                    self.logger.warning(f"Error closing camera {camera_info.unique_id}: {e}")
+                    self.logger.warning(f"Error closing camera {camera_unique_id}: {e}")
             
             if frame is None:
-                return False, f"Failed to capture frame from {camera_info.unique_id}"
+                return False, f"Failed to capture frame from {camera_unique_id} for side {side.value}"
             
-            # Build filename
-            filename = capture_config.filename_format.format(
-                unique_id=camera_info.unique_id,
-                timestamp=timestamp
-            )
-            file_path = output_folder / filename
+            # Build filename: {full_id}__{side}.jpg
+            filename = f"{full_walnut_id}__{side.value}.jpg"
+            file_path = walnut_folder / filename
             
             # Save image
             success = await self.image_writer.save_image_async(frame, str(file_path))
             if success:
-                self.logger.info(f"Captured {camera_info.unique_id} to {file_path}")
+                self.logger.info(f"Captured {side.value} ({camera_unique_id}) to {file_path}")
                 return True, ""
             else:
-                return False, f"Failed to save image from {camera_info.unique_id}"
+                return False, f"Failed to save image for side {side.value}"
         
-        # Capture from all cameras in parallel
-        capture_tasks = [capture_from_camera(camera_info) for camera_info in cameras]
+        # Capture from all mapped sides in parallel
+        capture_tasks = [
+            capture_from_side(side, camera_unique_id)
+            for side, camera_unique_id in camera_side_mapping.items()
+        ]
         capture_results = await asyncio.gather(*capture_tasks, return_exceptions=True)
         
         # Process results
@@ -137,5 +156,5 @@ class CameraCaptureService:
             else:
                 errors.append(error_msg)
         
-        return captured_count, len(cameras), errors
+        return captured_count, len(camera_side_mapping), errors
 

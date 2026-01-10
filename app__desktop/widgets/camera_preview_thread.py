@@ -10,19 +10,19 @@ from PyQt6.QtCore import QThread, pyqtSignal
 class CameraPreviewThread(QThread):
     """Thread for continuously capturing frames from a camera."""
     
-    frame_ready = pyqtSignal(int, np.ndarray)  # camera_index, frame
+    frame_ready = pyqtSignal(str, np.ndarray)  # camera_unique_id, frame
     
-    def __init__(self, camera_index: int, camera_handle: cv2.VideoCapture, parent=None):
+    def __init__(self, camera_unique_id: str, camera_handle: cv2.VideoCapture, parent=None):
         """
         Initialize camera preview thread.
         
         Args:
-            camera_index: Index of the camera
+            camera_unique_id: Unique ID of the camera
             camera_handle: OpenCV VideoCapture handle
             parent: Parent QObject (optional)
         """
         super().__init__(parent)
-        self.camera_index = camera_index
+        self.camera_unique_id = camera_unique_id
         self.camera_handle = camera_handle
         self.running = False
     
@@ -35,7 +35,7 @@ class CameraPreviewThread(QThread):
             
             ret, frame = self.camera_handle.read()
             if ret and frame is not None:
-                self.frame_ready.emit(self.camera_index, frame)
+                self.frame_ready.emit(self.camera_unique_id, frame)
             
             self.msleep(33)  # ~30 FPS
     

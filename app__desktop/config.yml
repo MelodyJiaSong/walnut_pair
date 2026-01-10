@@ -4,7 +4,7 @@ camera:
   max_scan_index: 15  # Maximum camera index to scan (0 to max_scan_index)
   preview:
     width: 640
-    height: 480
+    height: 600  # Increased height for better preview visibility
     buffer_size: 1
     fourcc: "MJPG"
     auto_exposure: 0.75

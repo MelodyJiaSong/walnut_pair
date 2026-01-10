@@ -1,0 +1,8 @@
+{
+  "front": "cam_0",
+  "back": "cam_1",
+  "left": "cam_2",
+  "right": "cam_3",
+  "top": "cam_4",
+  "down": "cam_5"
+}

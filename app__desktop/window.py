@@ -6,6 +6,9 @@ from typing import Dict, List
 from PyQt6.QtCore import QSize, QTimer
 from PyQt6.QtWidgets import (
     QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
     QMainWindow,
     QPushButton,
     QVBoxLayout,
@@ -14,11 +17,14 @@ from PyQt6.QtWidgets import (
 )
 
 from common.camera_info import CameraInfo
+from common.enums import WalnutSideEnum
 from common.logger import get_logger
 from infrastructure_layer.services.camera__service import ICameraService
 from app__desktop.app_config import DesktopAppConfig
 from app__desktop.services.camera_capture_service import CameraCaptureService
+from app__desktop.services.camera_side_mapping__service import CameraSideMappingService
 from app__desktop.widgets.camera_preview_widget import CameraPreviewWidget
+from app__desktop.widgets.camera_side_mapping__dialog import CameraSideMappingDialog
 
 
 class MainWindow(QMainWindow):
@@ -46,12 +52,23 @@ class MainWindow(QMainWindow):
         self.preview_widgets: Dict[str, CameraPreviewWidget] = {}
         self.logger = get_logger(__name__)
         
+        # Camera-side mapping service
+        self.mapping_service = CameraSideMappingService()
+        self.camera_side_mapping: Dict[WalnutSideEnum, str] = {}
+        
+        # Walnut ID fields
+        self.walnut_id_free_text: str = ""
+        self.walnut_id_number: int = 1
+        
         # Configure window from config
         window_config = app_config.ui.window
         self.setWindowTitle(window_config.title)
         self.setMinimumSize(QSize(window_config.min_width, window_config.min_height))
         
         self._setup_ui()
+        
+        # Load camera-side mapping on startup
+        self.camera_side_mapping = self.mapping_service.load_mapping()
         
         # Auto-scan cameras on startup
         QTimer.singleShot(500, self.scan_cameras)
@@ -63,12 +80,35 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         
-        # Create button bar
-        button_layout = QVBoxLayout()
+        # Walnut ID input section
+        walnut_id_layout = QHBoxLayout()
+        walnut_id_label = QLabel("Walnut ID:")
+        self.walnut_id_free_text_input = QLineEdit()
+        self.walnut_id_free_text_input.setPlaceholderText("Free text (e.g., type)")
+        self.walnut_id_free_text_input.textChanged.connect(self._on_walnut_id_free_text_changed)
         
-        # Buttons
+        self.walnut_id_number_input = QLineEdit()
+        self.walnut_id_number_input.setPlaceholderText("Number")
+        self.walnut_id_number_input.setText("1")
+        self.walnut_id_number_input.textChanged.connect(self._on_walnut_id_number_changed)
+        
+        walnut_id_separator = QLabel("__")
+        walnut_id_layout.addWidget(walnut_id_label)
+        walnut_id_layout.addWidget(self.walnut_id_free_text_input)
+        walnut_id_layout.addWidget(walnut_id_separator)
+        walnut_id_layout.addWidget(self.walnut_id_number_input)
+        walnut_id_layout.addStretch()
+        
+        main_layout.addLayout(walnut_id_layout)
+        
+        # Button bar
+        button_layout = QHBoxLayout()
+        
         scan_button = QPushButton("Scan Cameras")
         scan_button.clicked.connect(self.scan_cameras)
+        
+        config_mapping_button = QPushButton("Configure Camera Mapping")
+        config_mapping_button.clicked.connect(self.configure_camera_mapping)
         
         start_all_button = QPushButton("Start All Previews")
         start_all_button.clicked.connect(self.start_all_previews)
@@ -80,16 +120,30 @@ class MainWindow(QMainWindow):
         capture_all_button.clicked.connect(self.capture_all_cameras)
         
         button_layout.addWidget(scan_button)
+        button_layout.addWidget(config_mapping_button)
         button_layout.addWidget(start_all_button)
         button_layout.addWidget(stop_all_button)
         button_layout.addWidget(capture_all_button)
+        
+        main_layout.addLayout(button_layout)
         
         # Create grid layout for camera previews
         self.grid_layout = QGridLayout()
         self.grid_layout.setSpacing(10)
         
-        main_layout.addLayout(button_layout)
         main_layout.addLayout(self.grid_layout)
+    
+    def _on_walnut_id_free_text_changed(self, text: str):
+        """Handle walnut ID free text field change."""
+        self.walnut_id_free_text = text.strip()
+    
+    def _on_walnut_id_number_changed(self, text: str):
+        """Handle walnut ID number field change."""
+        try:
+            self.walnut_id_number = int(text.strip()) if text.strip() else 1
+        except ValueError:
+            self.walnut_id_number = 1
+            self.walnut_id_number_input.setText("1")
     
     def scan_cameras(self):
         """Scan for available cameras."""
@@ -109,11 +163,49 @@ class MainWindow(QMainWindow):
             
             if len(self.available_cameras) == 0:
                 QMessageBox.warning(self, "No Cameras", "No cameras found. Please check your connections.")
+            else:
+                # Reload mapping and check if all mapped cameras are still available
+                self.camera_side_mapping = self.mapping_service.load_mapping()
+                missing_cameras = []
+                for side, unique_id in self.camera_side_mapping.items():
+                    if not any(cam.unique_id == unique_id for cam in self.available_cameras):
+                        missing_cameras.append(f"{side.value.capitalize()}: {unique_id}")
+                
+                if missing_cameras:
+                    QMessageBox.warning(
+                        self,
+                        "Mapped Cameras Not Found",
+                        f"The following mapped cameras are no longer available:\n" +
+                        "\n".join(missing_cameras) +
+                        "\n\nPlease reconfigure camera mapping."
+                    )
         except Exception as e:
             self.logger.error(f"Error scanning cameras: {e}")
             QMessageBox.critical(self, "Error", f"Failed to scan cameras: {e}")
         finally:
             loop.close()
+    
+    def configure_camera_mapping(self):
+        """Open dialog to configure camera-to-side mapping."""
+        if not self.available_cameras:
+            QMessageBox.warning(self, "No Cameras", "Please scan for cameras first.")
+            return
+        
+        dialog = CameraSideMappingDialog(
+            available_cameras=self.available_cameras,
+            mapping_service=self.mapping_service,
+            parent=self
+        )
+        
+        if dialog.exec() == dialog.DialogCode.Accepted:
+            new_mapping = dialog.get_mapping()
+            self.camera_side_mapping = new_mapping
+            
+            # Save mapping to file
+            if self.mapping_service.save_mapping(new_mapping):
+                QMessageBox.information(self, "Success", "Camera mapping saved successfully.")
+            else:
+                QMessageBox.warning(self, "Warning", "Failed to save camera mapping to file.")
     
     def update_preview_grid(self):
         """Update the preview grid with available cameras."""
@@ -156,32 +248,67 @@ class MainWindow(QMainWindow):
             widget.stop_preview(self.camera_service)
     
     def capture_all_cameras(self):
-        """Capture images from all cameras."""
+        """Capture images from all cameras based on side mapping."""
         if not self.available_cameras:
             QMessageBox.warning(self, "No Cameras", "Please scan for cameras first.")
             return
         
-        self.logger.info("Capturing from all cameras...")
+        if not self.camera_side_mapping:
+            QMessageBox.warning(
+                self,
+                "No Mapping",
+                "Please configure camera-to-side mapping first.\n"
+                "Click 'Configure Camera Mapping' to set up the mapping."
+            )
+            return
+        
+        if not self.walnut_id_free_text.strip():
+            QMessageBox.warning(
+                self,
+                "Missing Walnut ID",
+                "Please enter a free text for the walnut ID."
+            )
+            return
+        
+        if self.walnut_id_number < 1:
+            QMessageBox.warning(
+                self,
+                "Invalid Walnut ID",
+                "Walnut ID number must be at least 1."
+            )
+            return
+        
+        self.logger.info(f"Capturing from all cameras for walnut {self.walnut_id_free_text}__{self.walnut_id_number:04d}...")
         
         async def _capture_all():
             return await self.camera_capture_service.capture_all_cameras_async(
-                cameras=self.available_cameras,
+                camera_side_mapping=self.camera_side_mapping,
+                available_cameras=self.available_cameras,
                 preview_widgets=self.preview_widgets,
+                walnut_id_free_text=self.walnut_id_free_text.strip(),
+                walnut_id_number=self.walnut_id_number,
             )
         
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            captured_count, total_cameras, errors = loop.run_until_complete(_capture_all())
+            captured_count, total_sides, errors = loop.run_until_complete(_capture_all())
             
-            message = f"Captured {captured_count} of {total_cameras} cameras."
+            message = f"Captured {captured_count} of {total_sides} sides."
             if errors:
-                message += f"\nErrors: {', '.join(errors)}"
+                message += f"\nErrors:\n" + "\n".join(errors[:5])  # Show first 5 errors
+                if len(errors) > 5:
+                    message += f"\n... and {len(errors) - 5} more errors"
             
-            if captured_count > 0:
+            if captured_count == total_sides:
                 QMessageBox.information(self, "Capture Complete", message)
+                # Auto-increment walnut ID number after successful capture
+                self.walnut_id_number += 1
+                self.walnut_id_number_input.setText(str(self.walnut_id_number))
+            elif captured_count > 0:
+                QMessageBox.warning(self, "Partial Capture", message)
             else:
-                QMessageBox.warning(self, "Capture Failed", message)
+                QMessageBox.critical(self, "Capture Failed", message)
         except Exception as e:
             self.logger.error(f"Error capturing cameras: {e}")
             QMessageBox.critical(self, "Error", f"Failed to capture cameras: {e}")

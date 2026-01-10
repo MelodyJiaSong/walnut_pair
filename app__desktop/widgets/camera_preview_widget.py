@@ -77,7 +77,7 @@ class CameraPreviewWidget(QLabel):
                 return False
             
             self.camera_handle = handle
-            self.preview_thread = CameraPreviewThread(self.camera_info.index, handle, self)
+            self.preview_thread = CameraPreviewThread(self.camera_info.unique_id, handle, self)
             self.preview_thread.frame_ready.connect(self.update_frame)
             self.preview_thread.start()
             return True
@@ -112,15 +112,15 @@ class CameraPreviewWidget(QLabel):
         
         self.setText(f"{self.camera_info.unique_id}\nStopped")
     
-    def update_frame(self, camera_index: int, frame: np.ndarray):
+    def update_frame(self, camera_unique_id: str, frame: np.ndarray):
         """
         Update the displayed frame.
         
         Args:
-            camera_index: Index of the camera that captured the frame
+            camera_unique_id: Unique ID of the camera that captured the frame
             frame: Frame data as numpy array (BGR format)
         """
-        if camera_index != self.camera_info.index:
+        if camera_unique_id != self.camera_info.unique_id:
             return
         
         # Convert BGR to RGB and ensure contiguous array
